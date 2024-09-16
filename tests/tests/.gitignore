@@ -1,0 +1,4 @@
+*.exe
+*.ex~
+*.pdb
+helloworld.txt

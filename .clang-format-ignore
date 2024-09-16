@@ -1,0 +1,4 @@
+beacon.h
+hooks_exe_*.h
+xorstr.hpp
+stkstr.hpp
