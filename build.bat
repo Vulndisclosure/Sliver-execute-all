@@ -9,44 +9,45 @@ call :VCVARSALL x86
 if errorlevel 1 echo Failed to initialize x86 environment. & exit /b 1
 
 @echo on
-cl hooks.cpp hooks.x86.obj %COMMON_FLAGS% /Fe"bin\hooks.x86.exe" %HOOKS_LINK_FLAGS%
-cl hooks.cpp hooks.x86.obj %COMMON_FLAGS% /D _DEBUG /Fe"bin\hooks.x86d.exe" %HOOKS_LINK_FLAGS%
+cl src\hooks.cpp src\hooks.x86.obj %COMMON_FLAGS% /Fe"bin\hooks.x86.exe" %HOOKS_LINK_FLAGS%
+cl src\hooks.cpp src\hooks.x86.obj %COMMON_FLAGS% /D _DEBUG /Fe"bin\hooks.x86d.exe" %HOOKS_LINK_FLAGS%
 @echo off
 
 call :VCVARSALL x64
 if errorlevel 1 echo Failed to initialize x64 environment. & exit /b 1
 
 @echo on
-cl hooks.cpp hooks.x64.obj %COMMON_FLAGS% /Fe"bin\hooks.x64.exe" %HOOKS_LINK_FLAGS%
-cl hooks.cpp hooks.x64.obj %COMMON_FLAGS% /D _DEBUG /Fe"bin\hooks.x64d.exe" %HOOKS_LINK_FLAGS%
+cl src\hooks.cpp src\hooks.x64.obj %COMMON_FLAGS% /Fe"bin\hooks.x64.exe" %HOOKS_LINK_FLAGS%
+cl src\hooks.cpp src\hooks.x64.obj %COMMON_FLAGS% /D _DEBUG /Fe"bin\hooks.x64d.exe" %HOOKS_LINK_FLAGS%
 @echo off
 
 cl /nologo exe2h\exe2h.c exe2h\mmap-windows.c /Fe"bin\exe2h.exe"
 bin\exe2h.exe bin\hooks.x86.exe bin\hooks.x86d.exe bin\hooks.x64.exe bin\hooks.x64d.exe
+move hooks_*_exe.h src
 del bin\exe2h.exe exe2h.obj mmap-windows.obj bin\hooks.*.exe hooks.obj
 
 call :VCVARSALL x86
 if errorlevel 1 echo Failed to initialize x86 environment. & exit /b 1
 
 @echo on
-cl /c inlineexecutepe.cpp %BOF_FLAGS% /Fo"bin\inlineexecutepe.x86.o"
-cl /c inlineexecutepe.cpp %BOF_FLAGS% /D _DEBUG /Fo"bin\inlineexecutepe.x86d.o"
-cl /c inlinelogpe.cpp %BOF_FLAGS% /Fo"bin\inlinelogpe.x86.o"
-cl /c inlinelogpe.cpp %BOF_FLAGS% /D _DEBUG /Fo"bin\inlinelogpe.x86d.o"
-cl /c inlinelistpe.cpp %BOF_FLAGS% /Fo"bin\inlinelistpe.x86.o"
-cl /c inlinelistpe.cpp %BOF_FLAGS% /D _DEBUG /Fo"bin\inlinelistpe.x86d.o"
+cl /c src\inlineexecutepe.cpp %BOF_FLAGS% /Fo"bin\inlineexecutepe.x86.o"
+cl /c src\inlineexecutepe.cpp %BOF_FLAGS% /D _DEBUG /Fo"bin\inlineexecutepe.x86d.o"
+cl /c src\inlinelogpe.cpp %BOF_FLAGS% /Fo"bin\inlinelogpe.x86.o"
+cl /c src\inlinelogpe.cpp %BOF_FLAGS% /D _DEBUG /Fo"bin\inlinelogpe.x86d.o"
+cl /c src\inlinelistpe.cpp %BOF_FLAGS% /Fo"bin\inlinelistpe.x86.o"
+cl /c src\inlinelistpe.cpp %BOF_FLAGS% /D _DEBUG /Fo"bin\inlinelistpe.x86d.o"
 @echo off
 
 call :VCVARSALL x64
 if errorlevel 1 echo Failed to initialize x64 environment. & exit /b 1
 
 @echo on
-cl /c inlineexecutepe.cpp %BOF_FLAGS% /Fo"bin\inlineexecutepe.x64.o"
-cl /c inlineexecutepe.cpp %BOF_FLAGS% /D _DEBUG /Fo"bin\inlineexecutepe.x64d.o"
-cl /c inlinelogpe.cpp %BOF_FLAGS% /Fo"bin\inlinelogpe.x64.o"
-cl /c inlinelogpe.cpp %BOF_FLAGS% /D _DEBUG /Fo"bin\inlinelogpe.x64d.o"
-cl /c inlinelistpe.cpp %BOF_FLAGS% /Fo"bin\inlinelistpe.x64.o"
-cl /c inlinelistpe.cpp %BOF_FLAGS% /D _DEBUG /Fo"bin\inlinelistpe.x64d.o"
+cl /c src\inlineexecutepe.cpp %BOF_FLAGS% /Fo"bin\inlineexecutepe.x64.o"
+cl /c src\inlineexecutepe.cpp %BOF_FLAGS% /D _DEBUG /Fo"bin\inlineexecutepe.x64d.o"
+cl /c src\inlinelogpe.cpp %BOF_FLAGS% /Fo"bin\inlinelogpe.x64.o"
+cl /c src\inlinelogpe.cpp %BOF_FLAGS% /D _DEBUG /Fo"bin\inlinelogpe.x64d.o"
+cl /c src\inlinelistpe.cpp %BOF_FLAGS% /Fo"bin\inlinelistpe.x64.o"
+cl /c src\inlinelistpe.cpp %BOF_FLAGS% /D _DEBUG /Fo"bin\inlinelistpe.x64d.o"
 @echo off
 
 strip\strip.exe ^
@@ -54,7 +55,7 @@ bin\inlineexecutepe.x86.o bin\inlineexecutepe.x86d.o bin\inlineexecutepe.x64.o b
 bin\inlinelogpe.x86.o bin\inlinelogpe.x86d.o bin\inlinelogpe.x64.o bin\inlinelogpe.x64d.o ^
 bin\inlinelistpe.x86.o bin\inlinelistpe.x86d.o bin\inlinelistpe.x64.o bin\inlinelistpe.x64d.o
 
-copy /Y inline-execute-all.cna bin\inline-execute-all.cna
+copy /Y src\inline-execute-all.cna bin\inline-execute-all.cna
 
 endlocal
 

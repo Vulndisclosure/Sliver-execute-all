@@ -779,7 +779,7 @@ DWORD WINAPI HookControlSelfUnloadProc(LPVOID lpThreadParameter) {
   free(ctx);
   setctx(NULL);
 #ifndef HOOKS_DLL
-  __fastcall void VirtualFreeAndExitThread(void *, void *, void *);
+  void __fastcall VirtualFreeAndExitThread(void *, void *, void *);
   VirtualFreeAndExitThread(hookBase, (void *)VirtualFree, (void *)ExitThread);
 #endif
   return 0;

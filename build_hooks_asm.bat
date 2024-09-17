@@ -4,14 +4,14 @@ setlocal
 call :VCVARSALL x86
 if errorlevel 1 echo Failed to initialize x86 environment. & exit /b 1
 
-ml /c hooks.x86.asm
+ml /Fo src\hooks.x86.obj /c src\hooks.x86.asm
 
 call :VCVARSALL x64
 if errorlevel 1 echo Failed to initialize x64 environment. & exit /b 1
 
-ml64 /c hooks.x64.asm
+ml64 /Fo src\hooks.x64.obj /c src\hooks.x64.asm
 
-strip\strip.exe hooks.x86.obj hooks.x64.obj
+strip\strip.exe src\hooks.x86.obj src\hooks.x64.obj
 
 endlocal
 
