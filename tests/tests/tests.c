@@ -6,14 +6,12 @@
 #include <conio.h>
 #include <stdio.h>
 
-extern HookResult InlineExecutePE(HookFeatures features, bool isBackground,
-                                  int runningTimeoutMs, void *stdin_,
-                                  int stdinSize, void *peImage, int peImageSize,
-                                  char *commandLineA, int commandLineASize,
-                                  void **loadedImageBase, int jobVersion);
-extern void InlineLogPE(void *imageBase);
-extern HookResult InlineWaitPE(void *imageBase, int waitingTimeoutMs);
-extern void InlineListPE();
+HookResult InlineExecutePE(HookFeatures features, void *stdin_, int stdinSize,
+                           void *peImage, int peImageSize, char *commandLineA,
+                           int commandLineASize, int jobVersion,
+                           HANDLE hCompletionEvent, void **loadedImageBase);
+void InlineLogPE(void *imageBase);
+void InlineListPE();
 
 static void *readfile(const char *filename, size_t *size) {
   if (!filename)
@@ -64,7 +62,7 @@ err:
 #else
 #define archstr "x86"
 #endif
-#define loopcount 1
+#define loopcount 100
 #define statement_after_execution // Sleep(30 * 1000)
 
 void test_c() {
@@ -75,23 +73,25 @@ void test_c() {
   char commandLine[] = "dummy.exe arg1 \"a r g 2\" 中文";
   size_t peImageSize = 0;
   void *peImage = readfile("helloworld_c." archstr ".exe", &peImageSize);
+  HANDLE hEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
   void *imageBase = NULL;
   HookResult result = HookResultSuccess;
   if (peImage) {
     for (size_t i = 0; i < loopcount; i++) {
-      result = InlineExecutePE(features, true, 0, stdin_, sizeof(stdin_),
-                               peImage, (int)peImageSize, commandLine,
-                               sizeof(commandLine), &imageBase, 0);
+      result = InlineExecutePE(features, stdin_, sizeof(stdin_), peImage,
+                               (int)peImageSize, commandLine,
+                               sizeof(commandLine), 0, hEvent, &imageBase);
       if (result != HookResultSuccess)
         __debugbreak();
       InlineListPE();
-      result = InlineWaitPE(imageBase, (int)INFINITE);
-      if (result != HookResultSuccess)
-        __debugbreak();
+      WaitForSingleObject(hEvent, INFINITE);
+      ResetEvent(hEvent);
+      InlineLogPE(imageBase);
       statement_after_execution;
     }
     free(peImage);
   }
+  CloseHandle(hEvent);
 }
 
 void test_go() {
@@ -103,24 +103,25 @@ void test_go() {
   char commandLine[] = "dummy.exe arg1 \"a r g 2\" 中文";
   size_t peImageSize = 0;
   void *peImage = readfile("helloworld_go." archstr ".exe", &peImageSize);
+  HANDLE hEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
   void *imageBase = NULL;
   HookResult result = HookResultSuccess;
   if (peImage) {
     for (size_t i = 0; i < loopcount; i++) {
-      result = InlineExecutePE(features, true, 0, stdin_, sizeof(stdin_),
-                               peImage, (int)peImageSize, commandLine,
-                               sizeof(commandLine), &imageBase, 0);
+      result = InlineExecutePE(features, stdin_, sizeof(stdin_), peImage,
+                               (int)peImageSize, commandLine,
+                               sizeof(commandLine), 0, hEvent, &imageBase);
       if (result != HookResultSuccess)
         __debugbreak();
-      InlineLogPE(imageBase);
       InlineListPE();
-      result = InlineWaitPE(imageBase, (int)INFINITE);
-      if (result != HookResultSuccess)
-        __debugbreak();
+      WaitForSingleObject(hEvent, INFINITE);
+      ResetEvent(hEvent);
+      InlineLogPE(imageBase);
       statement_after_execution;
     }
     free(peImage);
   }
+  CloseHandle(hEvent);
 }
 
 void test_seh() {
@@ -130,19 +131,25 @@ void test_seh() {
   char commandLine[] = "dummy.exe arg1 \"a r g 2\" 中文";
   size_t peImageSize = 0;
   void *peImage = readfile("helloworld_seh_c." archstr ".exe", &peImageSize);
+  HANDLE hEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
   void *imageBase = NULL;
   HookResult result = HookResultSuccess;
   if (peImage) {
     for (size_t i = 0; i < loopcount; i++) {
-      result = InlineExecutePE(features, false, (int)INFINITE, stdin_,
-                               sizeof(stdin_), peImage, (int)peImageSize,
-                               commandLine, sizeof(commandLine), &imageBase, 0);
+      result = InlineExecutePE(features, stdin_, sizeof(stdin_), peImage,
+                               (int)peImageSize, commandLine,
+                               sizeof(commandLine), 0, hEvent, &imageBase);
       if (result != HookResultSuccess)
         __debugbreak();
+      InlineListPE();
+      WaitForSingleObject(hEvent, INFINITE);
+      ResetEvent(hEvent);
+      InlineLogPE(imageBase);
       statement_after_execution;
     }
     free(peImage);
   }
+  CloseHandle(hEvent);
 }
 
 void test_frpc() {
@@ -156,24 +163,24 @@ void test_frpc() {
       "8000 --disable-log-color --log-level debug";
   size_t peImageSize = 0;
   void *peImage = readfile("frpc.exe", &peImageSize);
+  HANDLE hEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
   void *imageBase = NULL;
   HookResult result = HookResultSuccess;
   if (peImage) {
-    result = InlineExecutePE(features, true, 0, stdin_, sizeof(stdin_), peImage,
+    result = InlineExecutePE(features, stdin_, sizeof(stdin_), peImage,
                              (int)peImageSize, commandLine, sizeof(commandLine),
-                             &imageBase, 0);
+                             0, hEvent, &imageBase);
     if (result != HookResultSuccess)
       __debugbreak();
     for (int i = 0; i < 1000; i++) {
       Sleep(5000);
       InlineLogPE(imageBase);
     }
-    result = InlineWaitPE(imageBase, (int)INFINITE);
-    if (result != HookResultSuccess)
-      __debugbreak();
+    WaitForSingleObject(hEvent, INFINITE);
     statement_after_execution;
     free(peImage);
   }
+  CloseHandle(hEvent);
 }
 
 void test_gohttpserver() {
@@ -184,24 +191,24 @@ void test_gohttpserver() {
   char commandLine[] = "dummy.exe";
   size_t peImageSize = 0;
   void *peImage = readfile("gohttpserver.exe", &peImageSize);
+  HANDLE hEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
   void *imageBase = NULL;
   HookResult result = HookResultSuccess;
   if (peImage) {
-    result = InlineExecutePE(features, true, 0, stdin_, sizeof(stdin_), peImage,
+    result = InlineExecutePE(features, stdin_, sizeof(stdin_), peImage,
                              (int)peImageSize, commandLine, sizeof(commandLine),
-                             &imageBase, 0);
+                             0, hEvent, &imageBase);
     if (result != HookResultSuccess)
       __debugbreak();
     for (int i = 0; i < 1000; i++) {
       Sleep(5000);
       InlineLogPE(imageBase);
     }
-    result = InlineWaitPE(imageBase, (int)INFINITE);
-    if (result != HookResultSuccess)
-      __debugbreak();
+    WaitForSingleObject(hEvent, INFINITE);
     statement_after_execution;
     free(peImage);
   }
+  CloseHandle(hEvent);
 }
 
 void test_uacme() {
@@ -213,17 +220,21 @@ void test_uacme() {
   char commandLine[] = "dummy.exe 41";
   size_t peImageSize = 0;
   void *peImage = readfile("UACME." archstr ".exe", &peImageSize);
+  HANDLE hEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
   void *imageBase = NULL;
   HookResult result = HookResultSuccess;
   if (peImage) {
-    result = InlineExecutePE(features, false, (int)INFINITE, stdin_,
-                             sizeof(stdin_), peImage, (int)peImageSize,
-                             commandLine, sizeof(commandLine), &imageBase, 0);
+    result = InlineExecutePE(features, stdin_, sizeof(stdin_), peImage,
+                             (int)peImageSize, commandLine, sizeof(commandLine),
+                             0, hEvent, &imageBase);
     if (result != HookResultSuccess)
       __debugbreak();
+    WaitForSingleObject(hEvent, INFINITE);
+    InlineLogPE(imageBase);
     statement_after_execution;
     free(peImage);
   }
+  CloseHandle(hEvent);
 }
 
 void test_mimikatz() {
@@ -232,21 +243,25 @@ void test_mimikatz() {
                           HookFeatureUnload | HookFeatureCpp |
                           HookFeatureCppSEH;
   char stdin_[] = "";
-  char commandLine[] = "mimikatz.exe privi_lege::debug sekur_lsa::logon_passw_ords exit";
+  char commandLine[] =
+      "mimikatz.exe privi_lege::debug sekur_lsa::logon_passw_ords exit";
   size_t peImageSize = 0;
   void *peImage = readfile("mimikatz.exe", &peImageSize);
+  HANDLE hEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
   void *imageBase = NULL;
   HookResult result = HookResultSuccess;
   if (peImage) {
-    result = InlineExecutePE(features, false, (int)INFINITE, stdin_,
-                             sizeof(stdin_), peImage, (int)peImageSize,
-                             commandLine, sizeof(commandLine), &imageBase, 0);
+    result = InlineExecutePE(features, stdin_, sizeof(stdin_), peImage,
+                             (int)peImageSize, commandLine, sizeof(commandLine),
+                             0, hEvent, &imageBase);
     if (result != HookResultSuccess)
       __debugbreak();
+    WaitForSingleObject(hEvent, INFINITE);
+    InlineLogPE(imageBase);
     statement_after_execution;
     free(peImage);
   }
+  CloseHandle(hEvent);
 }
 
-int main() { 
-    test_seh(); }
+int main() { test_uacme(); }

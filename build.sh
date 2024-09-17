@@ -9,10 +9,10 @@ COMMON_FLAGS="-Os -std=c++17 $WARNING_FLAGS -D JM_XORSTR_DISABLE_AVX_INTRINSICS"
 HOOKS_FLAGS="$COMMON_FLAGS -fno-toplevel-reorder -nostdlib"
 BOF_FLAGS="$COMMON_FLAGS -D BOF"
 
-$CC32 hooks.cpp hooksvar.x86.obj $COMMON_FLAGS $HOOKS_FLAGS -o bin/hooks.x86.exe &
-$CC64 hooks.cpp hooksvar.x64.obj $COMMON_FLAGS $HOOKS_FLAGS -o bin/hooks.x64.exe &
-$CC32 hooks.cpp hooksvar.x86.obj $COMMON_FLAGS $HOOKS_FLAGS -D _DEBUG -o bin/hooks.x86d.exe &
-$CC64 hooks.cpp hooksvar.x64.obj $COMMON_FLAGS $HOOKS_FLAGS -D _DEBUG -o bin/hooks.x64d.exe &
+$CC32 hooks.cpp hooks.x86.obj $COMMON_FLAGS $HOOKS_FLAGS -o bin/hooks.x86.exe &
+$CC64 hooks.cpp hooks.x64.obj $COMMON_FLAGS $HOOKS_FLAGS -o bin/hooks.x64.exe &
+$CC32 hooks.cpp hooks.x86.obj $COMMON_FLAGS $HOOKS_FLAGS -D _DEBUG -o bin/hooks.x86d.exe &
+$CC64 hooks.cpp hooks.x64.obj $COMMON_FLAGS $HOOKS_FLAGS -D _DEBUG -o bin/hooks.x64d.exe &
 wait
 
 gcc exe2h/exe2h.c -obin/exe2h.out
@@ -27,10 +27,6 @@ $CC32 -c inlinelogpe.cpp $BOF_FLAGS -o bin/inlinelogpe.x86.o &
 $CC64 -c inlinelogpe.cpp $BOF_FLAGS -o bin/inlinelogpe.x64.o &
 $CC32 -c inlinelogpe.cpp $BOF_FLAGS -D _DEBUG -o bin/inlinelogpe.x86d.o &
 $CC64 -c inlinelogpe.cpp $BOF_FLAGS -D _DEBUG -o bin/inlinelogpe.x64d.o &
-$CC32 -c inlinewaitpe.cpp $BOF_FLAGS -o bin/inlinewaitpe.x86.o &
-$CC64 -c inlinewaitpe.cpp $BOF_FLAGS -o bin/inlinewaitpe.x64.o &
-$CC32 -c inlinewaitpe.cpp $BOF_FLAGS -D _DEBUG -o bin/inlinewaitpe.x86d.o &
-$CC64 -c inlinewaitpe.cpp $BOF_FLAGS -D _DEBUG -o bin/inlinewaitpe.x64d.o &
 $CC32 -c inlinelistpe.cpp $BOF_FLAGS -o bin/inlinelistpe.x86.o &
 $CC64 -c inlinelistpe.cpp $BOF_FLAGS -o bin/inlinelistpe.x64.o &
 $CC32 -c inlinelistpe.cpp $BOF_FLAGS -D _DEBUG -o bin/inlinelistpe.x86d.o &

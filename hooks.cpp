@@ -42,11 +42,15 @@ template <class CharT> _forceinline unsigned HashRT(const CharT *s) {
 }
 
 extern "C" {
-#ifndef HOOKS_DLL
 #include "hookspub.h"
 #include "stdarg.h"
 
 HookResult HookControlEntry(HookControl id, va_list args);
+
+// clang-format off
+#ifdef HOOKS_DLL
+__declspec(dllexport)
+#endif
 HookResult __HookControlEntry(HookControl id, ...) {
   va_list args;
   va_start(args, id);
@@ -54,52 +58,59 @@ HookResult __HookControlEntry(HookControl id, ...) {
   va_end(args);
   return result;
 }
-#endif
 
 #include "hooks.hpp"
 
-// clang-format off
-#include "simplelist.c"
+#include "simplelist1.c"
+#include "simplelist2.c"
 #include "pipeserver.c"
+
+#define HasFeatures(x)        ((getctx()->Features & (x)) == (x))
+
+#define CompletionEventHandle (getctx()->CompletionEventHandle)
+#define HookBase              (getctx()->HookBase)
+#define JobOutputWriteHandle  (getctx()->JobOutputWriteHandle)
+#define JobOutputLock         (getctx()->JobOutputLock)
+#define ImageBase             (getctx()->ImageBase)
+#ifdef _WIN64
+#define FunctionTable         (getctx()->FunctionTable)
+#else
+#define SEH_ImageBase         (getctx()->SEH_ImageBase)
+#endif
+#define PEImage               (getctx()->PEImage)
+#define Output                (getctx()->Output)
+
+#define CommandLineA          (getctx()->CommandLineA)
+#define CommandLineW          (getctx()->CommandLineW)
+
+#define ParentProcessId       (getctx()->ParentProcessId)
+
+#define StdinPipe             (getctx()->StdinPipe)
+#define StdoutPipe            (getctx()->StdoutPipe)
+#define StderrPipe            (getctx()->StderrPipe)
+
+#define ThreadList            (getctx()->ThreadList)
+#define ThreadListLock        (getctx()->ThreadListLock)
+#define ExceptionHandlerList  (getctx()->ExceptionHandlerList)
+#define MemoryList            (getctx()->MemoryList)
+#define MemoryListLock        (getctx()->MemoryListLock)
+#define TlsList               (getctx()->TlsList)
+#define TlsListLock           (getctx()->TlsListLock)
+
+#define Kernel32Base          (getctx()->Kernel32Base)
 // clang-format on
 
-#define HasFeatures(x) (((*getctx())->Features & (x)) == (x))
-
-#define Logs (*getctx())->Logs
-#define LogLock (*getctx())->LogLock
-
-#define JobOutputWriteHandle (*getctx())->JobOutputWriteHandle
-#define JobOutputLock (*getctx())->JobOutputLock
-
-#define ProcessExitedEvent (*getctx())->ProcessExitedEvent
-#define ProcessExitedThreadHandle (*getctx())->ProcessExitedThreadHandle
-
-#define CommandLineA (*getctx())->CommandLineA
-#define CommandLineW (*getctx())->CommandLineW
-
-#define ParentProcessId (*getctx())->ParentProcessId
-
-#define StdinPipe (*getctx())->StdinPipe
-#define StdoutPipe (*getctx())->StdoutPipe
-#define StderrPipe (*getctx())->StderrPipe
-
-#define ThreadList (*getctx())->ThreadList
-#define ThreadListLock (*getctx())->ThreadListLock
-#define ExceptionHandlerList (*getctx())->ExceptionHandlerList
-#define MemoryList (*getctx())->MemoryList
-#define MemoryListLock (*getctx())->MemoryListLock
-#define TlsList (*getctx())->TlsList
-#define TlsListLock (*getctx())->TlsListLock
-
-#define Kernel32Base (*getctx())->Kernel32Base
+/*
+ * Log
+ */
 
 void BeaconPrintfPostMsg(int type, const char *fmt, ...) {
   char *str = NULL;
   int strCb = 0;
   wchar_t *wstr = NULL;
   int wstrCch = 0;
-  LogEntry log;
   BOOL result = FALSE;
+  LogEntry log;
   va_list args;
 
   // Format string
@@ -157,7 +168,7 @@ void BeaconPrintfPostMsg(int type, const char *fmt, ...) {
       goto err;
   } else {
     log = {type, strCb, str};
-    SpinLock(LogLock, SimpleListAdd(&Logs, LogEntry, log));
+    SpinLock(Output->LogLock, SimpleListAdd(&Output->Logs, LogEntry, log));
     str = NULL; // Don't free
   }
   goto out;
@@ -174,7 +185,7 @@ out:
 }
 
 /*
- * HookContext
+ * Hooks
  */
 
 VOID WINAPI MyExitProcess(_In_ UINT uExitCode) {
@@ -197,13 +208,22 @@ VOID WINAPI MyExitProcess(_In_ UINT uExitCode) {
     });
     TRACEF("Thread %d will be terminated.", (UINT)(SIZE_T)NtCurrentThreadId());
   }
-  ProcessExitedThreadHandle =
-      OpenThread(THREAD_ALL_ACCESS, FALSE, (DWORD)(SIZE_T)NtCurrentThreadId());
-  SetEvent(ProcessExitedEvent);
-  PRINTF("Process exited with code %d. Use 'inline-wait-pe' to get results and "
-         "unload the PE image.",
-         uExitCode);
+  if (HasFeatures(HookFeatureUnload)) {
+    HANDLE hLastThread = OpenThread(THREAD_ALL_ACCESS, FALSE,
+                                    (DWORD)(SIZE_T)NtCurrentThreadId());
+    DWORD WINAPI HookControlSelfUnloadProc(LPVOID lpThreadParameter);
+    HANDLE hSelfUnloadThread = CreateThread(
+        NULL, 0, (LPTHREAD_START_ROUTINE)AddressOfHookControlSelfUnloadProc,
+        hLastThread, 0, NULL);
+    if (hSelfUnloadThread) {
+      CloseHandle(hSelfUnloadThread);
+      TRACEF("A new thread was created to self-unload.");
+    } else
+      PRINTF_ERR("Can't create a new thread to self-unload.");
+  }
+  PRINTF("Process exited with code %d.", uExitCode);
   ExitThread(uExitCode);
+  __debugbreak();
 }
 
 LPSTR WINAPI MyGetCommandLineA() {
@@ -355,8 +375,8 @@ _Ret_maybenull_ _Post_writable_byte_size_(dwSize) LPVOID WINAPI
     MyVirtualAlloc(_In_opt_ LPVOID lpAddress, _In_ SIZE_T dwSize,
                    _In_ DWORD flAllocationType, _In_ DWORD flProtect) {
   LPVOID p = VirtualAlloc(lpAddress, dwSize, flAllocationType, flProtect);
-  TRACEF("VirtualAlloc was called. (%p, %x, %x, %x, %p)", lpAddress,
-         (UINT)dwSize, (UINT)flAllocationType, (UINT)flProtect, p);
+  // TRACEF("VirtualAlloc was called. (%p, %x, %x, %x, %p)", lpAddress,
+  //        (UINT)dwSize, (UINT)flAllocationType, (UINT)flProtect, p);
   if (flAllocationType & MEM_RESERVE) {
     SpinLock(MemoryListLock, SimpleListAdd(&MemoryList, LPVOID, p));
     TRACEF("Memory %p was added to list.", p);
@@ -367,8 +387,8 @@ _Ret_maybenull_ _Post_writable_byte_size_(dwSize) LPVOID WINAPI
 BOOL WINAPI MyVirtualFree(LPVOID lpAddress, _In_ SIZE_T dwSize,
                           _In_ DWORD dwFreeType) {
   BOOL b = VirtualFree(lpAddress, dwSize, dwFreeType);
-  TRACEF("VirtualFree was called. (%p, %x, %x, %d)", lpAddress, dwSize,
-         dwFreeType, b);
+  // TRACEF("VirtualFree was called. (%p, %x, %x, %d)", lpAddress, dwSize,
+  //        dwFreeType, b);
   if (!dwSize && (dwFreeType & MEM_RELEASE)) {
     SpinLock(MemoryListLock, {
       SimpleListForEach(&MemoryList, LPVOID, p, {
@@ -477,25 +497,10 @@ DWORD WINAPI RunExeEntryProc(LPVOID lpThreadParameter) {
 
 HookResult HookControlCreateImpl(HookContext *ctx, void *stdin_, int stdinSize,
                                  char *commandLineA, int commandLineASize,
-                                 wchar_t *commandLineW, int commandLineWSize,
-                                 void *hJobWritePipe) {
-  OutputDebugStringA(xorstr_("Begin HookControlCreateImpl\n"));
+                                 wchar_t *commandLineW, int commandLineWSize) {
+  TRACEF("HookControlCreateImpl was called.");
 
   // Assume that APIs in ctx struct were already filled.
-
-  // Allocate logs
-  if (!SimpleListAlloc(&Logs, sizeof(LogEntry) * 64))
-    return HookResultErrorCreateLogs;
-
-  // Initialize beacon job stuff
-  JobOutputWriteHandle = hJobWritePipe;
-  JobOutputLock = 0;
-
-  // Create process exited event
-  ProcessExitedEvent = CreateEventA(NULL, TRUE, FALSE, NULL);
-  if (!ProcessExitedEvent)
-    return HookResultErrorCreateProcessExitedEvent;
-  ProcessExitedThreadHandle = NULL;
 
   // Copy command-line Ansi and Unicode
   if (HasFeatures(HookFeatureCommandLine)) {
@@ -557,7 +562,7 @@ HookResult HookControlCreateImpl(HookContext *ctx, void *stdin_, int stdinSize,
 }
 
 void HookControlDeleteImpl(HookContext *ctx) {
-  OutputDebugStringA(xorstr_("Begin HookControlDeleteImpl\n"));
+  TRACEF("HookControlDeleteImpl was called.");
 
   ctx->MyGetProcAddress = NULL;
   Kernel32Base = NULL;
@@ -578,6 +583,10 @@ void HookControlDeleteImpl(HookContext *ctx) {
     CloseWritePipeServer(&StdinPipe);
     CloseReadPipeServer(&StdoutPipe, FALSE);
     CloseReadPipeServer(&StderrPipe, FALSE);
+    Output->Stdout = StdoutPipe.Buffer;
+    StdoutPipe.Buffer = NULL;
+    Output->Stderr = StderrPipe.Buffer;
+    StderrPipe.Buffer = NULL;
   }
 
   // Zero ParentProcessId
@@ -595,30 +604,10 @@ void HookControlDeleteImpl(HookContext *ctx) {
       CommandLineW = NULL;
     }
   }
-
-  // Delete process exited event
-  if (ProcessExitedEvent) {
-    CloseHandle(ProcessExitedEvent);
-    ProcessExitedEvent = NULL;
-  }
-  ProcessExitedThreadHandle = 0;
-
-  // Free beacon job stuff
-  JobOutputWriteHandle = NULL;
-  JobOutputLock = 0;
-
-  // Free logs
-  SimpleListForEach(&Logs, LogEntry, log, {
-    if (log->Text) {
-      free(log->Text);
-      log->Text = NULL;
-    }
-  });
-  SimpleListFree(&Logs);
 }
 
 HookResult HookControlStartImpl(HookContext *ctx, void *entryPoint) {
-  OutputDebugStringA(xorstr_("Begin HookControlStartImpl\n"));
+  TRACEF("HookControlStartImpl was called.");
 
   HANDLE hThread;
   if (HasFeatures(HookFeatureUnload | HookFeatureGo))
@@ -635,20 +624,8 @@ HookResult HookControlStartImpl(HookContext *ctx, void *entryPoint) {
   return HookResultSuccess;
 }
 
-HookResult HookControlStopImpl(HookContext *ctx, int timeoutMilliseconds) {
-  OutputDebugStringA(xorstr_("Begin HookControlStopImpl\n"));
-
-  // Wait for process exit event
-  if (WaitForSingleObject(ProcessExitedEvent, (DWORD)timeoutMilliseconds) !=
-      WAIT_OBJECT_0)
-    return HookResultErrorStopWaitTimeout;
-
-  // Wait for the thread that sets the process exit event to exit
-  HANDLE lastThread = ProcessExitedThreadHandle;
-  if (!lastThread)
-    return HookResultErrorStopWaitLastThread;
-  WaitForSingleObject(lastThread, INFINITE);
-  CloseHandle(lastThread);
+HookResult HookControlStopImpl(HookContext *ctx) {
+  TRACEF("HookControlStopImpl was called.");
 
   // Remove all top level exception handlers and release memory pages
   if (HasFeatures(HookFeatureUnload | HookFeatureGo)) {
@@ -692,15 +669,14 @@ HookResult HookControlEntry(HookControl id, va_list args) {
     int commandLineASize = va_arg(args, int);
     wchar_t *commandLineW = va_arg(args, wchar_t *);
     int commandLineWSize = va_arg(args, int);
-    void *hJobWritePipe = va_arg(args, void *);
     if (!ctx)
       return HookResultErrorInvalidArgument;
 
     // Initialize hook context
-    *getctx() = ctx;
-    HookResult result = HookControlCreateImpl(
-        ctx, stdin_, stdinSize, commandLineA, commandLineASize, commandLineW,
-        commandLineWSize, hJobWritePipe);
+    setctx(ctx);
+    HookResult result =
+        HookControlCreateImpl(ctx, stdin_, stdinSize, commandLineA,
+                              commandLineASize, commandLineW, commandLineWSize);
     if (result != HookResultSuccess) {
       HookControlDeleteImpl(ctx);
       return result;
@@ -708,16 +684,16 @@ HookResult HookControlEntry(HookControl id, va_list args) {
 
     return HookResultSuccess;
   } else if (id == HookControlDelete) {
-    HookContext *ctx = *getctx();
+    HookContext *ctx = getctx();
     if (!ctx)
       return HookResultErrorNotYetCreated;
 
     HookControlDeleteImpl(ctx);
-    *getctx() = NULL;
+    setctx(NULL);
     return HookResultSuccess;
   } else if (id == HookControlStart) {
     // Get arguments
-    HookContext *ctx = *getctx();
+    HookContext *ctx = getctx();
     void *entryPoint = va_arg(args, void *);
     if (!entryPoint)
       return HookResultErrorInvalidArgument;
@@ -727,13 +703,85 @@ HookResult HookControlEntry(HookControl id, va_list args) {
     return HookControlStartImpl(ctx, entryPoint);
   } else if (id == HookControlStop) {
     // Get arguments
-    HookContext *ctx = *getctx();
-    int timeoutMilliseconds = va_arg(args, int);
+    HookContext *ctx = getctx();
     if (!ctx)
       return HookResultErrorNotYetCreated;
 
-    return HookControlStopImpl(ctx, timeoutMilliseconds);
+    return HookControlStopImpl(ctx);
   }
   return HookResultErrorInvalidControl;
+}
+
+#undef CompletionEventHandle
+#undef HookBase
+#undef JobOutputWriteHandle
+#undef JobOutputLock
+#undef ImageBase
+#ifdef _WIN64
+#undef FunctionTable
+#else
+#undef SEH_ImageBase
+#endif
+#undef PEImage
+#undef Output
+#undef ExitThread
+#undef VirtualFree
+#define _static
+#include "globalshareddata.h"
+
+DWORD WINAPI HookControlSelfUnloadProc(LPVOID lpThreadParameter) {
+  HANDLE hLastThread = (HANDLE)lpThreadParameter;
+  WaitForSingleObject(hLastThread, INFINITE);
+  CloseHandle(hLastThread);
+
+  /*
+   * 5. Free hook and PE image (continuation of inlineexecutepe.cpp)
+   */
+
+  TRACEF("5. Free hook and PE image");
+
+  HookContext *ctx = getctx();
+  LoadedPEImage *peImage = (LoadedPEImage *)ctx->PEImage;
+#ifdef _WIN64
+  PRUNTIME_FUNCTION functionTable = (PRUNTIME_FUNCTION)ctx->FunctionTable;
+#else
+  PVOID *seh_ImageBase = (PVOID *)ctx->SEH_ImageBase;
+#endif
+  PVOID imageBase = ctx->ImageBase;
+  HANDLE hCompletionEvent = ctx->CompletionEventHandle;
+  PVOID hookBase = ctx->HookBase;
+  decltype(ExitThread) *ExitThread = (decltype(ExitThread))ctx->_ExitThread;
+  decltype(VirtualFree) *VirtualFree = (decltype(VirtualFree))ctx->_VirtualFree;
+
+  // Do HookControl
+  HookControlStopImpl(ctx);
+  HookControlDeleteImpl(ctx);
+
+  // Unload PE image
+  SpinLock(peImage->HookContextLock, peImage->HookContext = NULL);
+  peImage->IsRunning = FALSE;
+  if (HasFeatures(HookFeatureCppSEH)) {
+#ifdef _WIN64
+    RtlDeleteFunctionTable(functionTable);
+#else
+    *seh_ImageBase = NULL;
+#endif
+    TRACEF("SEH was disabled.");
+  }
+  VirtualFree(imageBase, 0, MEM_RELEASE);
+  TRACEF("The entire PE image was unloaded.");
+  if (hCompletionEvent) {
+    SetEvent(hCompletionEvent);
+    TRACEF("Completion event of PE image %p was set.", imageBase);
+  }
+
+  // Unload hook
+  free(ctx);
+  setctx(NULL);
+#ifndef HOOKS_DLL
+  __fastcall void VirtualFreeAndExitThread(void *, void *, void *);
+  VirtualFreeAndExitThread(hookBase, (void *)VirtualFree, (void *)ExitThread);
+#endif
+  return 0;
 }
 }

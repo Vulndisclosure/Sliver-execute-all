@@ -20,9 +20,11 @@
 typedef struct {
   PVOID ImageBase;
   HookContext *HookContext;
+  volatile LONG HookContextLock;
   BOOL IsRunning;
   PVOID JobList;
   int JobId;
+  HookOutput *Output;
 } LoadedPEImage;
 
 typedef struct {

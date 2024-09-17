@@ -365,4 +365,4 @@ FodyWeavers.xsd
 .vscode
 bin
 hooks_*_exe.h
-!hooksvar.*.obj
+!hooks.*.obj

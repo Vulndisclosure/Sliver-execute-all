@@ -19,6 +19,15 @@ typedef enum {
   HookFeatureGoCobraFakeParentProcess = 0x020000
 } HookFeatures;
 
+// The HookOutput should be both allocated and freed outside of the hooks
+typedef struct {
+  SimpleList *Stdout;
+  SimpleList *Stderr;
+  SimpleList Logs;
+  volatile LONG LogLock;
+  int Type;
+} HookOutput;
+
 typedef struct {
   int Type;
   int Size;
@@ -27,7 +36,7 @@ typedef struct {
 
 #define EHTYPE_VEH 1
 #define EHTYPE_VCH 2
-//#define EHTYPE_UEF 3
+// #define EHTYPE_UEF 3
 
 typedef struct {
   int Type;
@@ -40,18 +49,18 @@ typedef struct {
    */
 
   HookFeatures Features;
-
-  PVOID HookControlEntry;
-
-  SimpleList Logs;
-  volatile LONG LogLock;
-
-  HANDLE JobOutputReadHandle;
+  HANDLE CompletionEventHandle;
+  PVOID HookBase;
   HANDLE JobOutputWriteHandle;
   volatile LONG JobOutputLock;
-
-  HANDLE ProcessExitedEvent;
-  volatile HANDLE ProcessExitedThreadHandle;
+  PVOID ImageBase;
+#ifdef _WIN64
+  PVOID FunctionTable;
+#else
+  PVOID SEH_ImageBase;
+#endif
+  PVOID PEImage;
+  HookOutput *Output;
 
   char *CommandLineA;
   WCHAR *CommandLineW;
@@ -109,6 +118,9 @@ typedef struct {
   PVOID _malloc;
   PVOID _realloc;
   PVOID _vsprintf_s;
+#ifdef _WIN64
+  PVOID _RtlDeleteFunctionTable;
+#endif
 #ifdef _DEBUG
   PVOID _OutputDebugStringA;
 #endif
@@ -127,8 +139,6 @@ typedef enum _HookResult {
   HookResultErrorInvalidControl = (int)0x80000000,
   HookResultErrorInvalidArgument,
   HookResultErrorNotYetCreated,
-  HookResultErrorCreateLogs,
-  HookResultErrorCreateProcessExitedEvent,
   HookResultErrorCreateCommandLine,
   HookResultErrorCreatePipeServers,
   HookResultErrorCreateNewThreadList,
@@ -137,8 +147,6 @@ typedef enum _HookResult {
   HookResultErrorCreateTlsList,
   HookResultErrorCreateKernel32Base,
   HookResultErrorStartNewThread,
-  HookResultErrorStopWaitTimeout,
-  HookResultErrorStopWaitLastThread,
 
   HookResultSuccess = 0,
 } HookResult;

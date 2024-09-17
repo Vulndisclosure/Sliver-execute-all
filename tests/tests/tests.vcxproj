@@ -144,7 +144,6 @@
     <ClCompile Include="..\..\inlineexecutepe.cpp" />
     <ClCompile Include="..\..\inlinelistpe.cpp" />
     <ClCompile Include="..\..\inlinelogpe.cpp" />
-    <ClCompile Include="..\..\inlinewaitpe.cpp" />
     <ClCompile Include="..\..\jobs.c">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
@@ -174,7 +173,7 @@
     <ClInclude Include="..\..\inlineexecutepe.hpp" />
     <ClInclude Include="..\..\inlinelistpe.hpp" />
     <ClInclude Include="..\..\inlinelogpe.hpp" />
-    <ClInclude Include="..\..\inlinewaitpe.hpp" />
+    <ClInclude Include="..\..\jobs.h" />
     <ClInclude Include="..\..\pipeserver.h" />
     <ClInclude Include="..\..\simplelist.h" />
     <ClInclude Include="..\..\xorstr.hpp" />

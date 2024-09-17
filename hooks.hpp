@@ -10,10 +10,11 @@
  *============================================================================*/
 
 // clang-format off
-// In hooksvar.*.asm
+// In hooks.*.asm
 #ifdef _WIN64
 extern HookContext *ctx;
-_forceinline HookContext **getctx() { return &ctx; }
+_forceinline HookContext *getctx() { return ctx; }
+_forceinline void setctx(HookContext *ctx) { ::ctx = ctx; }
 #define AddressOfMyExitProcess                 ((void *)(&MyExitProcess))
 #define AddressOfMyGetCommandLineA             ((void *)(&MyGetCommandLineA))
 #define AddressOfMyGetCommandLineW             ((void *)(&MyGetCommandLineW))
@@ -29,27 +30,30 @@ _forceinline HookContext **getctx() { return &ctx; }
 #define AddressOfMyTlsAlloc                    ((void *)(&MyTlsAlloc))
 #define AddressOfMyGetProcAddress              ((void *)(&MyGetProcAddress))
 #define AddressOfRunExeEntryProc               ((void *)(&RunExeEntryProc))
+#define AddressOfHookControlSelfUnloadProc     ((void *)(&HookControlSelfUnloadProc))
 #define AddressOfReadPipeServerProc            ((void *)(&ReadPipeServerProc))
 #define AddressOfWritePipeServerProc           ((void *)(&WritePipeServerProc))
 #else
-HookContext **getctx();
-void *GetMyExitProcessStub();
-void *GetMyGetCommandLineAStub();
-void *GetMyGetCommandLineWStub();
-void *GetMyGetStdHandleStub();
-void *GetMyProcess32NextWStub();
-void *GetMyWriteFileStub();
-void *GetMyCreateThreadStub();
-void *GetMyAddVectoredExceptionHandlerStub();
-void *GetMyAddVectoredContinueHandlerStub();
-void *GetMySetConsoleCtrlHandlerStub();
-void *GetMyVirtualAllocStub();
-void *GetMyVirtualFreeStub();
-void *GetMyTlsAllocStub();
-void *GetMyGetProcAddressStub();
-void *GetRunExeEntryProcStub();
-void *GetReadPipeServerProcStub();
-void *GetWritePipeServerProcStub();
+extern HookContext *getctx();
+extern void setctx(HookContext *ctx);
+extern void *GetMyExitProcessStub();
+extern void *GetMyGetCommandLineAStub();
+extern void *GetMyGetCommandLineWStub();
+extern void *GetMyGetStdHandleStub();
+extern void *GetMyProcess32NextWStub();
+extern void *GetMyWriteFileStub();
+extern void *GetMyCreateThreadStub();
+extern void *GetMyAddVectoredExceptionHandlerStub();
+extern void *GetMyAddVectoredContinueHandlerStub();
+extern void *GetMySetConsoleCtrlHandlerStub();
+extern void *GetMyVirtualAllocStub();
+extern void *GetMyVirtualFreeStub();
+extern void *GetMyTlsAllocStub();
+extern void *GetMyGetProcAddressStub();
+extern void *GetRunExeEntryProcStub();
+extern void *GetHookControlSelfUnloadProcStub();
+extern void *GetReadPipeServerProcStub();
+extern void *GetWritePipeServerProcStub();
 #define AddressOfMyExitProcess                 (GetMyExitProcessStub())
 #define AddressOfMyGetCommandLineA             (GetMyGetCommandLineAStub())
 #define AddressOfMyGetCommandLineW             (GetMyGetCommandLineWStub())
@@ -65,46 +69,50 @@ void *GetWritePipeServerProcStub();
 #define AddressOfMyTlsAlloc                    (GetMyTlsAllocStub())
 #define AddressOfMyGetProcAddress              (GetMyGetProcAddressStub())
 #define AddressOfRunExeEntryProc               (GetRunExeEntryProcStub())
+#define AddressOfHookControlSelfUnloadProc     (GetHookControlSelfUnloadProcStub())
 #define AddressOfReadPipeServerProc            (GetReadPipeServerProcStub())
 #define AddressOfWritePipeServerProc           (GetWritePipeServerProcStub())
 #endif
 
 extern int __cdecl vsprintf_s_proto(char* const _Buffer, size_t const _BufferCount, char const* const _Format, va_list _ArgList);
-#define AddVectoredContinueHandler     ((decltype(AddVectoredContinueHandler    )*)((*getctx())->_AddVectoredContinueHandler    ))
-#define AddVectoredExceptionHandler    ((decltype(AddVectoredExceptionHandler   )*)((*getctx())->_AddVectoredExceptionHandler   ))
-#define CloseHandle                    ((decltype(CloseHandle                   )*)((*getctx())->_CloseHandle                   ))
-#define CreateEventA                   ((decltype(CreateEventA                  )*)((*getctx())->_CreateEventA                  ))
-#define CreatePipe                     ((decltype(CreatePipe                    )*)((*getctx())->_CreatePipe                    ))
-#define CreateThread                   ((decltype(CreateThread                  )*)((*getctx())->_CreateThread                  ))
-#define ExitThread                     ((decltype(ExitThread                    )*)((*getctx())->_ExitThread                    ))
-#define GetModuleHandleA               ((decltype(GetModuleHandleA              )*)((*getctx())->_GetModuleHandleA              ))
-#define GetProcAddress                 ((decltype(GetProcAddress                )*)((*getctx())->_GetProcAddress                ))
-#define GetStdHandle                   ((decltype(GetStdHandle                  )*)((*getctx())->_GetStdHandle                  ))
-#define GetThreadId                    ((decltype(GetThreadId                   )*)((*getctx())->_GetThreadId                   ))
-#define MultiByteToWideChar            ((decltype(MultiByteToWideChar           )*)((*getctx())->_MultiByteToWideChar           ))
-#define OpenThread                     ((decltype(OpenThread                    )*)((*getctx())->_OpenThread                    ))
-#define Process32NextW                 ((decltype(Process32NextW                )*)((*getctx())->_Process32NextW                ))
-#define ReadFile                       ((decltype(ReadFile                      )*)((*getctx())->_ReadFile                      ))
-#define RemoveVectoredContinueHandler  ((decltype(RemoveVectoredContinueHandler )*)((*getctx())->_RemoveVectoredContinueHandler ))
-#define RemoveVectoredExceptionHandler ((decltype(RemoveVectoredExceptionHandler)*)((*getctx())->_RemoveVectoredExceptionHandler))
-#define SetEvent                       ((decltype(SetEvent                      )*)((*getctx())->_SetEvent                      ))
-#define SetUnhandledExceptionFilter    ((decltype(SetUnhandledExceptionFilter   )*)((*getctx())->_SetUnhandledExceptionFilter   ))
-#define Sleep                          ((decltype(Sleep                         )*)((*getctx())->_Sleep                         ))
-#define TerminateThread                ((decltype(TerminateThread               )*)((*getctx())->_TerminateThread               ))
-#define TlsAlloc                       ((decltype(TlsAlloc                      )*)((*getctx())->_TlsAlloc                      ))
-#define TlsFree                        ((decltype(TlsFree                       )*)((*getctx())->_TlsFree                       ))
-#define VirtualAlloc                   ((decltype(VirtualAlloc                  )*)((*getctx())->_VirtualAlloc                  ))
-#define VirtualFree                    ((decltype(VirtualFree                   )*)((*getctx())->_VirtualFree                   ))
-#define WaitForSingleObject            ((decltype(WaitForSingleObject           )*)((*getctx())->_WaitForSingleObject           ))
-#define WideCharToMultiByte            ((decltype(WideCharToMultiByte           )*)((*getctx())->_WideCharToMultiByte           ))
-#define WriteFile                      ((decltype(WriteFile                     )*)((*getctx())->_WriteFile                     ))
-#define _vscprintf                     ((decltype(_vscprintf                    )*)((*getctx())->__vscprintf                    ))
-#define free                           ((decltype(free                          )*)((*getctx())->_free                          ))
-#define malloc                         ((decltype(malloc                        )*)((*getctx())->_malloc                        ))
-#define realloc                        ((decltype(realloc                       )*)((*getctx())->_realloc                       ))
-#define vsprintf_s                     ((decltype(vsprintf_s_proto              )*)((*getctx())->_vsprintf_s                    ))
+#define AddVectoredContinueHandler     ((decltype(AddVectoredContinueHandler    )*)(getctx()->_AddVectoredContinueHandler    ))
+#define AddVectoredExceptionHandler    ((decltype(AddVectoredExceptionHandler   )*)(getctx()->_AddVectoredExceptionHandler   ))
+#define CloseHandle                    ((decltype(CloseHandle                   )*)(getctx()->_CloseHandle                   ))
+#define CreateEventA                   ((decltype(CreateEventA                  )*)(getctx()->_CreateEventA                  ))
+#define CreatePipe                     ((decltype(CreatePipe                    )*)(getctx()->_CreatePipe                    ))
+#define CreateThread                   ((decltype(CreateThread                  )*)(getctx()->_CreateThread                  ))
+#define ExitThread                     ((decltype(ExitThread                    )*)(getctx()->_ExitThread                    ))
+#define GetModuleHandleA               ((decltype(GetModuleHandleA              )*)(getctx()->_GetModuleHandleA              ))
+#define GetProcAddress                 ((decltype(GetProcAddress                )*)(getctx()->_GetProcAddress                ))
+#define GetStdHandle                   ((decltype(GetStdHandle                  )*)(getctx()->_GetStdHandle                  ))
+#define GetThreadId                    ((decltype(GetThreadId                   )*)(getctx()->_GetThreadId                   ))
+#define MultiByteToWideChar            ((decltype(MultiByteToWideChar           )*)(getctx()->_MultiByteToWideChar           ))
+#define OpenThread                     ((decltype(OpenThread                    )*)(getctx()->_OpenThread                    ))
+#define Process32NextW                 ((decltype(Process32NextW                )*)(getctx()->_Process32NextW                ))
+#define ReadFile                       ((decltype(ReadFile                      )*)(getctx()->_ReadFile                      ))
+#define RemoveVectoredContinueHandler  ((decltype(RemoveVectoredContinueHandler )*)(getctx()->_RemoveVectoredContinueHandler ))
+#define RemoveVectoredExceptionHandler ((decltype(RemoveVectoredExceptionHandler)*)(getctx()->_RemoveVectoredExceptionHandler))
+#define SetEvent                       ((decltype(SetEvent                      )*)(getctx()->_SetEvent                      ))
+#define SetUnhandledExceptionFilter    ((decltype(SetUnhandledExceptionFilter   )*)(getctx()->_SetUnhandledExceptionFilter   ))
+#define Sleep                          ((decltype(Sleep                         )*)(getctx()->_Sleep                         ))
+#define TerminateThread                ((decltype(TerminateThread               )*)(getctx()->_TerminateThread               ))
+#define TlsAlloc                       ((decltype(TlsAlloc                      )*)(getctx()->_TlsAlloc                      ))
+#define TlsFree                        ((decltype(TlsFree                       )*)(getctx()->_TlsFree                       ))
+#define VirtualAlloc                   ((decltype(VirtualAlloc                  )*)(getctx()->_VirtualAlloc                  ))
+#define VirtualFree                    ((decltype(VirtualFree                   )*)(getctx()->_VirtualFree                   ))
+#define WaitForSingleObject            ((decltype(WaitForSingleObject           )*)(getctx()->_WaitForSingleObject           ))
+#define WideCharToMultiByte            ((decltype(WideCharToMultiByte           )*)(getctx()->_WideCharToMultiByte           ))
+#define WriteFile                      ((decltype(WriteFile                     )*)(getctx()->_WriteFile                     ))
+#define _vscprintf                     ((decltype(_vscprintf                    )*)(getctx()->__vscprintf                    ))
+#define free                           ((decltype(free                          )*)(getctx()->_free                          ))
+#define malloc                         ((decltype(malloc                        )*)(getctx()->_malloc                        ))
+#define realloc                        ((decltype(realloc                       )*)(getctx()->_realloc                       ))
+#define vsprintf_s                     ((decltype(vsprintf_s_proto              )*)(getctx()->_vsprintf_s                    ))
+#ifdef _WIN64
+#define RtlDeleteFunctionTable         ((decltype(RtlDeleteFunctionTable        )*)(getctx()->_RtlDeleteFunctionTable        ))
+#endif
 #ifdef _DEBUG
-#define OutputDebugStringA             ((decltype(OutputDebugStringA            )*)((*getctx())->_OutputDebugStringA            ))
+#define OutputDebugStringA             ((decltype(OutputDebugStringA            )*)(getctx()->_OutputDebugStringA            ))
 #else
 #define OutputDebugStringA
 #endif

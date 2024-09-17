@@ -9,16 +9,16 @@ call :VCVARSALL x86
 if errorlevel 1 echo Failed to initialize x86 environment. & exit /b 1
 
 @echo on
-cl hooks.cpp hooksvar.x86.obj %COMMON_FLAGS% /Fe"bin\hooks.x86.exe" %HOOKS_LINK_FLAGS%
-cl hooks.cpp hooksvar.x86.obj %COMMON_FLAGS% /D _DEBUG /Fe"bin\hooks.x86d.exe" %HOOKS_LINK_FLAGS%
+cl hooks.cpp hooks.x86.obj %COMMON_FLAGS% /Fe"bin\hooks.x86.exe" %HOOKS_LINK_FLAGS%
+cl hooks.cpp hooks.x86.obj %COMMON_FLAGS% /D _DEBUG /Fe"bin\hooks.x86d.exe" %HOOKS_LINK_FLAGS%
 @echo off
 
 call :VCVARSALL x64
 if errorlevel 1 echo Failed to initialize x64 environment. & exit /b 1
 
 @echo on
-cl hooks.cpp hooksvar.x64.obj %COMMON_FLAGS% /Fe"bin\hooks.x64.exe" %HOOKS_LINK_FLAGS%
-cl hooks.cpp hooksvar.x64.obj %COMMON_FLAGS% /D _DEBUG /Fe"bin\hooks.x64d.exe" %HOOKS_LINK_FLAGS%
+cl hooks.cpp hooks.x64.obj %COMMON_FLAGS% /Fe"bin\hooks.x64.exe" %HOOKS_LINK_FLAGS%
+cl hooks.cpp hooks.x64.obj %COMMON_FLAGS% /D _DEBUG /Fe"bin\hooks.x64d.exe" %HOOKS_LINK_FLAGS%
 @echo off
 
 cl /nologo exe2h\exe2h.c exe2h\mmap-windows.c /Fe"bin\exe2h.exe"
@@ -33,8 +33,6 @@ cl /c inlineexecutepe.cpp %BOF_FLAGS% /Fo"bin\inlineexecutepe.x86.o"
 cl /c inlineexecutepe.cpp %BOF_FLAGS% /D _DEBUG /Fo"bin\inlineexecutepe.x86d.o"
 cl /c inlinelogpe.cpp %BOF_FLAGS% /Fo"bin\inlinelogpe.x86.o"
 cl /c inlinelogpe.cpp %BOF_FLAGS% /D _DEBUG /Fo"bin\inlinelogpe.x86d.o"
-cl /c inlinewaitpe.cpp %BOF_FLAGS% /Fo"bin\inlinewaitpe.x86.o"
-cl /c inlinewaitpe.cpp %BOF_FLAGS% /D _DEBUG /Fo"bin\inlinewaitpe.x86d.o"
 cl /c inlinelistpe.cpp %BOF_FLAGS% /Fo"bin\inlinelistpe.x86.o"
 cl /c inlinelistpe.cpp %BOF_FLAGS% /D _DEBUG /Fo"bin\inlinelistpe.x86d.o"
 @echo off
@@ -47,8 +45,6 @@ cl /c inlineexecutepe.cpp %BOF_FLAGS% /Fo"bin\inlineexecutepe.x64.o"
 cl /c inlineexecutepe.cpp %BOF_FLAGS% /D _DEBUG /Fo"bin\inlineexecutepe.x64d.o"
 cl /c inlinelogpe.cpp %BOF_FLAGS% /Fo"bin\inlinelogpe.x64.o"
 cl /c inlinelogpe.cpp %BOF_FLAGS% /D _DEBUG /Fo"bin\inlinelogpe.x64d.o"
-cl /c inlinewaitpe.cpp %BOF_FLAGS% /Fo"bin\inlinewaitpe.x64.o"
-cl /c inlinewaitpe.cpp %BOF_FLAGS% /D _DEBUG /Fo"bin\inlinewaitpe.x64d.o"
 cl /c inlinelistpe.cpp %BOF_FLAGS% /Fo"bin\inlinelistpe.x64.o"
 cl /c inlinelistpe.cpp %BOF_FLAGS% /D _DEBUG /Fo"bin\inlinelistpe.x64d.o"
 @echo off
@@ -56,7 +52,6 @@ cl /c inlinelistpe.cpp %BOF_FLAGS% /D _DEBUG /Fo"bin\inlinelistpe.x64d.o"
 strip\strip.exe ^
 bin\inlineexecutepe.x86.o bin\inlineexecutepe.x86d.o bin\inlineexecutepe.x64.o bin\inlineexecutepe.x64d.o ^
 bin\inlinelogpe.x86.o bin\inlinelogpe.x86d.o bin\inlinelogpe.x64.o bin\inlinelogpe.x64d.o ^
-bin\inlinewaitpe.x86.o bin\inlinewaitpe.x86d.o bin\inlinewaitpe.x64.o bin\inlinewaitpe.x64d.o ^
 bin\inlinelistpe.x86.o bin\inlinelistpe.x86d.o bin\inlinelistpe.x64.o bin\inlinelistpe.x64d.o
 
 copy /Y inline-execute-all.cna bin\inline-execute-all.cna

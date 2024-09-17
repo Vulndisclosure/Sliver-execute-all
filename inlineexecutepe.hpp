@@ -9,7 +9,6 @@
 // clang-format off
 WINBASEAPI NTSTATUS NTAPI NtFlushInstructionCache(HANDLE ProcessHandle, PVOID BaseAddress, ULONG NumberOfBytesToFlush);
 #ifdef BOF
-#define DFR(mod, func) DECLSPEC_IMPORT decltype(func) mod##$##func;
 DFR(KERNEL32, CloseHandle)
 #define CloseHandle KERNEL32$CloseHandle
 DFR(KERNEL32, CreatePipe)

@@ -7,27 +7,32 @@ BOOL CreatePipeServer(PipeServer *pipe, void *buffer, int size,
   HANDLE hThread = NULL;
   if (!CreatePipe((PHANDLE)&t.ReadHandle, (PHANDLE)&t.WriteHandle, NULL, 0))
     goto err;
-  if (!SimpleListAlloc(&t.Buffer, size))
+  if (!(t.Buffer = (SimpleList *)malloc(sizeof(SimpleList))))
     goto err;
-  if (buffer && !SimpleListAddBuffer(&t.Buffer, buffer, size))
+  if (!SimpleListAlloc(t.Buffer, size))
+    goto err;
+  if (buffer && !SimpleListAddBuffer(t.Buffer, buffer, size))
     goto err;
   t.StoppedEvent = CreateEventA(NULL, TRUE, FALSE, NULL);
   if (!t.StoppedEvent)
     goto err;
 
   // Create read/write background thread
-  hThread = CreateThread(NULL, 0, proc, pipe, 0, NULL);
-  if (!hThread)
-    goto err;
-  CloseHandle(hThread);
-
   *pipe = t;
+  hThread = CreateThread(NULL, 0, proc, pipe, 0, NULL);
+  if (!hThread) {
+    *pipe = {};
+    goto err;
+  }
+  CloseHandle(hThread);
   return TRUE;
 
 err:
   if (t.StoppedEvent)
     CloseHandle(t.StoppedEvent);
-  SimpleListFree(&t.Buffer);
+  SimpleListFree(t.Buffer);
+  if (t.Buffer)
+    free(t.Buffer);
   if (t.WriteHandle)
     CloseHandle(t.WriteHandle);
   if (t.ReadHandle)
@@ -35,7 +40,7 @@ err:
   return FALSE;
 }
 
-EXTERN_C DWORD WINAPI ReadPipeServerProc(LPVOID lpThreadParameter) {
+DWORD WINAPI ReadPipeServerProc(LPVOID lpThreadParameter) {
   PipeServer *pipe = (PipeServer *)lpThreadParameter;
 
   BOOL result = FALSE;
@@ -58,7 +63,7 @@ EXTERN_C DWORD WINAPI ReadPipeServerProc(LPVOID lpThreadParameter) {
     // Copy data to buffer
     if (bytesRead)
       SpinLock(pipe->Lock,
-               SimpleListAddBuffer(&pipe->Buffer, buffer, bytesRead));
+               SimpleListAddBuffer(pipe->Buffer, buffer, bytesRead));
   } while (result);
 
   SetEvent(pipe->StoppedEvent);
@@ -94,17 +99,20 @@ void CloseReadPipeServer(PipeServer *pipe, BOOL freeBuffer) {
   }
 
   // Free internal buffer
-  if (freeBuffer)
-    SimpleListFree(&pipe->Buffer);
+  if (freeBuffer) {
+    SimpleListFree(pipe->Buffer);
+    free(pipe->Buffer);
+    pipe->Buffer = NULL;
+  }
 }
 
-EXTERN_C DWORD WINAPI WritePipeServerProc(LPVOID lpThreadParameter) {
+DWORD WINAPI WritePipeServerProc(LPVOID lpThreadParameter) {
   PipeServer *pipe = (PipeServer *)lpThreadParameter;
 
   // Write data to the pipe
   DWORD bytesWritten = 0;
-  BOOL result = WriteFile(pipe->WriteHandle, pipe->Buffer.Buffer,
-                          pipe->Buffer.Size, &bytesWritten, NULL);
+  BOOL result = WriteFile(pipe->WriteHandle, pipe->Buffer->Buffer,
+                          pipe->Buffer->Size, &bytesWritten, NULL);
   if (!result) {
     if (pipe->IsStopping)
       TRACEF("Failed to WriteFile in WritePipeServerProc because pipe server "
@@ -112,7 +120,7 @@ EXTERN_C DWORD WINAPI WritePipeServerProc(LPVOID lpThreadParameter) {
     else
       PRINTF_ERR("Failed to WriteFile in WritePipeServerProc. (size: %d vs %d, "
                  "error: %x)",
-                 pipe->Buffer.Size, bytesWritten, (UINT)NtLastError());
+                 pipe->Buffer->Size, bytesWritten, (UINT)NtLastError());
   }
 
   SetEvent(pipe->StoppedEvent);
@@ -127,7 +135,7 @@ _forceinline BOOL CreateWritePipeServer(PipeServer *pipe, void *buffer,
 }
 */
 _forceinline BOOL CreateWritePipeServer(PipeServer *pipe, void *buffer,
-                                         int size, void *proc) {
+                                        int size, void *proc) {
   return CreatePipeServer(pipe, buffer, size, (LPTHREAD_START_ROUTINE)proc);
 }
 
@@ -150,5 +158,7 @@ void CloseWritePipeServer(PipeServer *pipe) {
   }
 
   // Free internal buffer
-  SimpleListFree(&pipe->Buffer);
+  SimpleListFree(pipe->Buffer);
+  free(pipe->Buffer);
+  pipe->Buffer = NULL;
 }

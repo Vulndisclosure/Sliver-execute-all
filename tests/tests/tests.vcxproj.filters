@@ -24,9 +24,6 @@
     <ClCompile Include="..\..\inlineexecutepe.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\inlinewaitpe.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\inlinelogpe.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -74,10 +71,10 @@
     <ClInclude Include="..\..\inlinelogpe.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\inlinewaitpe.hpp">
+    <ClInclude Include="..\..\inlinelistpe.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\inlinelistpe.hpp">
+    <ClInclude Include="..\..\jobs.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

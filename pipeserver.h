@@ -5,7 +5,7 @@
 typedef struct {
   volatile HANDLE ReadHandle;
   volatile HANDLE WriteHandle;
-  SimpleList Buffer;
+  SimpleList *Buffer;
   volatile LONG Lock;
   volatile BOOL IsStopping;
   HANDLE StoppedEvent;

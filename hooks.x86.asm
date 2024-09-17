@@ -2,18 +2,42 @@
 .MODEL FLAT
 
 PUBLIC _getctx
+PUBLIC _setctx
+PUBLIC @VirtualFreeAndExitThread@12
 
 .CODE
+
+ctx DD -1
 
 _getctx PROC
     call $+5
 retaddr:
     pop eax
-    add eax, OFFSET ctxdata - OFFSET retaddr
+    add eax, OFFSET ctx - OFFSET retaddr
+    mov eax, dword ptr [eax]
     ret
-ctxdata:
-    dd -1
 _getctx ENDP
+
+_setctx PROC
+    call $+5
+retaddr:
+    pop eax
+    add eax, OFFSET ctx - OFFSET retaddr
+    mov ecx, dword ptr [esp + 4]
+    mov dword ptr [eax], ecx
+    ret
+_setctx ENDP
+
+MEM_RELEASE equ 8000h
+
+@VirtualFreeAndExitThread@12 PROC
+    push dword ptr [esp + 4]
+    push MEM_RELEASE
+    push 0
+    push ecx
+    jmp edx
+    int 3
+@VirtualFreeAndExitThread@12 ENDP
 
 DefineFunctionStub MACRO name, decorator
     PUBLIC _Get&name&Stub
@@ -44,6 +68,7 @@ DefineFunctionStub MyVirtualFree, @12
 DefineFunctionStub MyTlsAlloc, @0
 DefineFunctionStub MyGetProcAddress, @8
 DefineFunctionStub RunExeEntryProc, @4
+DefineFunctionStub HookControlSelfUnloadProc, @4
 DefineFunctionStub ReadPipeServerProc, @4
 DefineFunctionStub WritePipeServerProc, @4
 

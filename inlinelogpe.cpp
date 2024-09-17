@@ -8,14 +8,18 @@ extern "C" {
 #include "inlinelogpe.hpp"
 
 #include "globalshareddata.c"
+#include "jobs.h"
+#include "simplelist1.c"
 
 void InlineLogPE(void *imageBase) {
   TRACEF("Begin fetch log.");
 
-  HookContext *hookCtx = NULL;
-  PVOID jobList = NULL;
   GlobalSharedData *sharedData = NULL;
   int index = 0;
+  LoadedPEImage *peImage = NULL;
+  JobEntry **jobList = NULL;
+  int jobId = 0;
+  HookOutput *output = NULL;
 
   sharedData = GetGlobalSharedData();
   if (!imageBase) {
@@ -30,34 +34,49 @@ void InlineLogPE(void *imageBase) {
     PRINTF_ERR("Can't find %p in PEImages.", imageBase);
     goto out;
   }
-  hookCtx = sharedData->PEImages[index].HookContext;
-  jobList = sharedData->PEImages[index].JobList;
+  peImage = sharedData->PEImages + index;
+  jobList = (JobEntry **)peImage->JobList;
+  jobId = peImage->JobId;
+  output = peImage->Output;
 
-  /*
-   * Copied from inlineexecutepe.cpp
-   */
+  TRACEF("Print async log");
 
-  /*
-   * 6. Print async log
-   */
-
-  TRACEF("6. Print async log");
-
-  if (!jobList) {
-    SpinLock(hookCtx->LogLock, {
-      SimpleListForEach(&hookCtx->Logs, LogEntry, log, {
-        if (log->Text) {
-          _BeaconPrint(log->Type, xorstr_("%.*s"), log->Size, log->Text);
-          free(log->Text);
-          log->Text = NULL;
-          // TODO: Trim list?
-        }
-      });
+  SpinLock(output->LogLock, {
+    SimpleListForEach(&output->Logs, LogEntry, log, {
+      if (!log->Text)
+        continue;
+      _BeaconPrint(log->Type, xorstr_("%.*s"), log->Size, log->Text);
+      free(log->Text);
+      log->Text = NULL;
+      // TODO: Trim list?
     });
-  } else {
-    PRINTF_ERR("Do NOT call 'inline-log-pe' when the PE image was already "
-               "added to the job list.");
+  });
+
+  TRACEF("Print stdout/stderr");
+
+  if (peImage->IsRunning) {
+    PRINTF("The PE image %p is still running. Skip printing stdout/stderr.",
+           imageBase);
+    goto out;
   }
+  if (output->Stdout) {
+    _BeaconPrint(output->Type, xorstr_("Stdout: %.*s"), output->Stdout->Size,
+                 (char *)output->Stdout->Buffer);
+    SimpleListFree(output->Stdout);
+  }
+  if (output->Stderr) {
+    _BeaconPrint(output->Type, xorstr_("Stderr: %.*s"), output->Stderr->Size,
+                 (char *)output->Stderr->Buffer);
+    SimpleListFree(output->Stderr);
+  }
+  SimpleListFree(&output->Logs);
+  free(output);
+  if (jobList) {
+    SimpleRemoveJob(jobList, jobId);
+    TRACEF("Job %d was removed.", jobId);
+  }
+  *peImage = {};
+  TRACEF("PE image %p was removed from global shared data.", imageBase);
 
 out:
   TRACEF("End fetch log.");

