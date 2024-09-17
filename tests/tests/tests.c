@@ -2,7 +2,7 @@
 #include <Windows.h>
 #include <TlHelp32.h>
 // clang-format on
-#include "../../hookspub.h"
+#include "../../src/hookspub.h"
 #include <conio.h>
 #include <stdio.h>
 

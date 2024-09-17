@@ -5,6 +5,8 @@ set COMMON_FLAGS=/nologo /O1 /Os /GS- /Zc:inline /permissive- /std:c++17 /W3 /D 
 set HOOKS_LINK_FLAGS=/link /NOLOGO /OPT:REF /ENTRY:__HookControlEntry /ORDER:@hooksorder.txt /SUBSYSTEM:CONSOLE
 set BOF_FLAGS=%COMMON_FLAGS% /Gy- /GF- /D BOF
 
+if not exist "bin" mkdir "bin"
+
 call :VCVARSALL x86
 if errorlevel 1 echo Failed to initialize x86 environment. & exit /b 1
 

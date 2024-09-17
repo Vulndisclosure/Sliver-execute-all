@@ -18,68 +18,68 @@
     <ClCompile Include="tests.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\ReflectiveLoaderEx.c">
+    <ClCompile Include="..\..\src\ReflectiveLoaderEx.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\inlineexecutepe.cpp">
+    <ClCompile Include="..\..\src\inlineexecutepe.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\inlinelogpe.cpp">
+    <ClCompile Include="..\..\src\inlinelogpe.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\globalshareddata.c">
+    <ClCompile Include="..\..\src\globalshareddata.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\inlinelistpe.cpp">
+    <ClCompile Include="..\..\src\inlinelistpe.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\jobs.c">
+    <ClCompile Include="..\..\src\jobs.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\seh.c">
+    <ClCompile Include="..\..\src\seh.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\simplelist.h">
+    <ClInclude Include="..\..\src\simplelist.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\xorstr.hpp">
+    <ClInclude Include="..\..\src\xorstr.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\beacon.h">
+    <ClInclude Include="..\..\src\beacon.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\beacon_compatibility.h">
+    <ClInclude Include="..\..\src\beacon_compatibility.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\hookspub.h">
+    <ClInclude Include="..\..\src\hookspub.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\inlineexecutepe.hpp">
+    <ClInclude Include="..\..\src\inlineexecutepe.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\pipeserver.h">
+    <ClInclude Include="..\..\src\pipeserver.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\globalshareddata.h">
+    <ClInclude Include="..\..\src\globalshareddata.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\inlinecommon.hpp">
+    <ClInclude Include="..\..\src\inlinecommon.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\inlinelogpe.hpp">
+    <ClInclude Include="..\..\src\inlinelogpe.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\inlinelistpe.hpp">
+    <ClInclude Include="..\..\src\inlinelistpe.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\jobs.h">
+    <ClInclude Include="..\..\src\jobs.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\seh.x86.asm">
+    <None Include="..\..\src\seh.x86.asm">
       <Filter>Source Files</Filter>
     </None>
   </ItemGroup>

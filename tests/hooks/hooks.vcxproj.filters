@@ -18,47 +18,47 @@
     <ClCompile Include="dllmain.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\hooks.cpp">
+    <ClCompile Include="..\..\src\hooks.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\pipeserver.c">
+    <ClCompile Include="..\..\src\pipeserver.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\simplelist2.c">
+    <ClCompile Include="..\..\src\simplelist2.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\simplelist1.c">
+    <ClCompile Include="..\..\src\simplelist1.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\hooks.hpp">
+    <ClInclude Include="..\..\src\hooks.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\hookspub.h">
+    <ClInclude Include="..\..\src\hookspub.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\pipeserver.h">
+    <ClInclude Include="..\..\src\pipeserver.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\simplelist.h">
+    <ClInclude Include="..\..\src\simplelist.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\xorstr.hpp">
+    <ClInclude Include="..\..\src\xorstr.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\stkstr.hpp">
+    <ClInclude Include="..\..\src\stkstr.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\globalshareddata.h">
+    <ClInclude Include="..\..\src\globalshareddata.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\hooks.x86.asm">
+    <None Include="..\..\src\hooks.x86.asm">
       <Filter>Source Files</Filter>
     </None>
-    <None Include="..\..\hooks.x64.asm">
+    <None Include="..\..\src\hooks.x64.asm">
       <Filter>Source Files</Filter>
     </None>
   </ItemGroup>

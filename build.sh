@@ -9,6 +9,8 @@ COMMON_FLAGS="-Os -std=c++17 $WARNING_FLAGS -D JM_XORSTR_DISABLE_AVX_INTRINSICS"
 HOOKS_FLAGS="$COMMON_FLAGS -fno-toplevel-reorder -nostdlib"
 BOF_FLAGS="$COMMON_FLAGS -D BOF"
 
+mkdir -p bin
+
 $CC32 src/hooks.cpp src/hooks.x86.obj $COMMON_FLAGS $HOOKS_FLAGS -o bin/hooks.x86.exe &
 $CC64 src/hooks.cpp src/hooks.x64.obj $COMMON_FLAGS $HOOKS_FLAGS -o bin/hooks.x64.exe &
 $CC32 src/hooks.cpp src/hooks.x86.obj $COMMON_FLAGS $HOOKS_FLAGS -D _DEBUG -o bin/hooks.x86d.exe &
