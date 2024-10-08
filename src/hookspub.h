@@ -116,6 +116,7 @@ typedef struct {
   PVOID __vscprintf;
   PVOID _free;
   PVOID _malloc;
+  PVOID _memcpy;
   PVOID _realloc;
   PVOID _vsprintf_s;
 #ifdef _WIN64

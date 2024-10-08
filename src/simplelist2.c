@@ -19,7 +19,7 @@ void *SimpleListAddBuffer(SimpleList *list, void *value, int size) {
 
   // Append the new data to the buffer
   void *dest = (char *)list->Buffer + list->Size;
-  _memcpy(dest, value, size);
+  memcpy(dest, value, size);
   list->Size += size;
 
   return dest;

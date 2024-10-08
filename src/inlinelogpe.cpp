@@ -34,7 +34,7 @@ void InlineLogPE(void *imageBase) {
     PRINTF_ERR("Can't find %p in PEImages.", imageBase);
     goto out;
   }
-  peImage = sharedData->PEImages + index;
+  peImage = &sharedData->PEImages[index];
   jobList = (JobEntry **)peImage->JobList;
   jobId = peImage->JobId;
   output = peImage->Output;

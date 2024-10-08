@@ -80,7 +80,7 @@ _static bool InstallNtQueryVirtualMemoryHook(PVOID **imageBaseList) {
     PRINTF_ERR("Failed to allocate NtQueryVirtualMemory hook code.");
     return false;
   }
-  _memcpy(p, NtQueryVirtualMemoryHook, sizeof(NtQueryVirtualMemoryHook));
+  memcpy(p, NtQueryVirtualMemoryHook, sizeof(NtQueryVirtualMemoryHook));
 
   // Reloc for hook code
   if (instruction.Bytes[0] == 0xB8) {
@@ -144,7 +144,7 @@ _static PVOID EnableSEH(PVOID imageBase) {
     if (!data->SEH_ImageBaseList[i]) {
       data->SEH_ImageBaseList[i] = imageBase;
       TRACEF("SEH_ImageBaseList[%d] = %p", i, imageBase);
-      return data->SEH_ImageBaseList + i;
+      return &data->SEH_ImageBaseList[i];
     }
   }
 

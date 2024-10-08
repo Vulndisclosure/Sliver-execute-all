@@ -62,6 +62,7 @@ _static void ImportHookApis(HookContext *ctx) {
   ctx->__vscprintf                        = GetProcAddress2(msvcrt, "_vscprintf");
   ctx->_free                              = GetProcAddress2(msvcrt, "free");
   ctx->_malloc                            = GetProcAddress2(msvcrt, "malloc");
+  ctx->_memcpy                            = GetProcAddress2(msvcrt, "memcpy");
   ctx->_realloc                           = GetProcAddress2(msvcrt, "realloc");
   ctx->_vsprintf_s                        = GetProcAddress2(msvcrt, "vsprintf_s");
 #ifdef _WIN64
@@ -132,7 +133,7 @@ HookResult InlineExecutePE(HookFeatures features, void *stdin_, int stdinSize,
     PRINTF_ERR("Failed to allocate hooks context.");
     goto err;
   }
-  _memset(hookCtx, 0, sizeof(HookContext));
+  memset(hookCtx, 0, sizeof(HookContext));
   hookCtx->Features = features;
   hookCtx->CompletionEventHandle = hCompletionEvent;
   ImportHookApis(hookCtx);
@@ -147,7 +148,7 @@ HookResult InlineExecutePE(HookFeatures features, void *stdin_, int stdinSize,
     PRINTF_ERR("Failed to allocate hooks code.");
     goto err;
   }
-  _memcpy(hookBase, HOOKS_EXE, sizeof(HOOKS_EXE));
+  memcpy(hookBase, HOOKS_EXE, sizeof(HOOKS_EXE));
   hookCtx->HookBase = hookBase;
   hookControlEntry = (HookControlEntryProc)hookBase;
 #endif
@@ -192,7 +193,7 @@ HookResult InlineExecutePE(HookFeatures features, void *stdin_, int stdinSize,
     PRINTF_ERR("Failed to allocate hook output.");
     goto err;
   }
-  _memset(output, 0, sizeof(HookOutput));
+  memset(output, 0, sizeof(HookOutput));
   if (!SimpleListAlloc(&output->Logs, sizeof(LogEntry) * 64)) {
     PRINTF_ERR("Failed to allocate hook log list.");
     goto err;
@@ -257,10 +258,10 @@ HookResult InlineExecutePE(HookFeatures features, void *stdin_, int stdinSize,
 #endif
     TRACEF("SEH was enabled.");
     // Zero PE headers
-    _memset(peImage, 0,
-            ((PIMAGE_NT_HEADERS)((PBYTE)peImage +
-                                 ((PIMAGE_DOS_HEADER)peImage)->e_lfanew))
-                ->OptionalHeader.SizeOfHeaders);
+    memset(peImage, 0,
+           ((PIMAGE_NT_HEADERS)((PBYTE)peImage +
+                                ((PIMAGE_DOS_HEADER)peImage)->e_lfanew))
+               ->OptionalHeader.SizeOfHeaders);
   }
   PRINTF("PE image was loaded. (imageBase: %p, imageSize: %x, entryPoint: %p)",
          imageBase, (UINT)imageSize, entryPoint);
@@ -273,7 +274,7 @@ HookResult InlineExecutePE(HookFeatures features, void *stdin_, int stdinSize,
     PRINTF_ERR("Too many loaded PE images. Can't add to PEImages.");
     goto err;
   }
-  loadedPEImage = sharedData->PEImages + index;
+  loadedPEImage = &sharedData->PEImages[index];
   loadedPEImage->ImageBase = imageBase;
   loadedPEImage->HookContext = hookCtx;
   loadedPEImage->IsRunning = FALSE;

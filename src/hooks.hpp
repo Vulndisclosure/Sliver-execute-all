@@ -106,6 +106,7 @@ extern int __cdecl vsprintf_s_proto(char* const _Buffer, size_t const _BufferCou
 #define _vscprintf                     ((decltype(_vscprintf                    )*)(getctx()->__vscprintf                    ))
 #define free                           ((decltype(free                          )*)(getctx()->_free                          ))
 #define malloc                         ((decltype(malloc                        )*)(getctx()->_malloc                        ))
+#define memcpy                         ((decltype(memcpy                        )*)(getctx()->_memcpy                        ))
 #define realloc                        ((decltype(realloc                       )*)(getctx()->_realloc                       ))
 #define vsprintf_s                     ((decltype(vsprintf_s_proto              )*)(getctx()->_vsprintf_s                    ))
 #ifdef _WIN64
@@ -140,11 +141,6 @@ extern int __cdecl vsprintf_s_proto(char* const _Buffer, size_t const _BufferCou
     code;                                                                      \
     InterlockedExchange(&(lock), 0);                                           \
   } while (0)
-
-_forceinline void _memcpy(void *dst, const void *src, size_t size) {
-  for (size_t i = 0; i < size; i++)
-    ((unsigned char *)dst)[i] = ((unsigned char *)src)[i];
-}
 
 /*==============================================================================
  * Log

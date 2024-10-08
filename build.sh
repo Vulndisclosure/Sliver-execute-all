@@ -5,7 +5,7 @@ CC64="x86_64-w64-mingw32-gcc"
 CC32="$CC32 -msse2"
 CC64="$CC64 -mcmodel=small"
 WARNING_FLAGS="-Wall -Wextra -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-function -Wno-unused-value -Wno-array-bounds"
-COMMON_FLAGS="-Os -std=c++17 $WARNING_FLAGS -D JM_XORSTR_DISABLE_AVX_INTRINSICS"
+COMMON_FLAGS="-Os -fno-builtin -fno-ident -std=c++17 $WARNING_FLAGS -D JM_XORSTR_DISABLE_AVX_INTRINSICS"
 HOOKS_FLAGS="$COMMON_FLAGS -fno-toplevel-reorder -nostdlib"
 BOF_FLAGS="$COMMON_FLAGS -D BOF"
 

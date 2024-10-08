@@ -20,7 +20,7 @@ _static GlobalSharedData *GetGlobalSharedData() {
   } else {
     while (!(data = (GlobalSharedData *)malloc(sizeof(GlobalSharedData))))
       ;
-    _memset(data, 0, sizeof(GlobalSharedData));
+    memset(data, 0, sizeof(GlobalSharedData));
     SIZE_T value = (SIZE_T)data ^ key;
     _ui64toa((ULONG64)value, valueStr, 16);
     SetEnvironmentVariableA(keyStr, valueStr);

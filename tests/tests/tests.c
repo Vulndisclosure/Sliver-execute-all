@@ -211,6 +211,34 @@ void test_gohttpserver() {
   CloseHandle(hEvent);
 }
 
+void test_fscan() {
+  HookFeatures features = HookFeatureRedirectStdio |
+                          HookFeatureStreamingOutput | HookFeatureCommandLine |
+                          HookFeatureUnload | HookFeatureGo;
+  char stdin_[] = "";
+  char commandLine[] = "dummy.exe -h 192.168.1.1/24";
+  size_t peImageSize = 0;
+  void *peImage = readfile("fscan.exe", &peImageSize);
+  HANDLE hEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
+  void *imageBase = NULL;
+  HookResult result = HookResultSuccess;
+  if (peImage) {
+    result = InlineExecutePE(features, stdin_, sizeof(stdin_), peImage,
+                             (int)peImageSize, commandLine, sizeof(commandLine),
+                             0, hEvent, &imageBase);
+    if (result != HookResultSuccess)
+      __debugbreak();
+    for (int i = 0; i < 1000; i++) {
+      Sleep(5000);
+      InlineLogPE(imageBase);
+    }
+    WaitForSingleObject(hEvent, INFINITE);
+    statement_after_execution;
+    free(peImage);
+  }
+  CloseHandle(hEvent);
+}
+
 void test_uacme() {
   HookFeatures features = HookFeatureRedirectStdio |
                           HookFeatureStreamingOutput | HookFeatureCommandLine |
@@ -264,4 +292,4 @@ void test_mimikatz() {
   CloseHandle(hEvent);
 }
 
-int main() { test_uacme(); }
+int main() { test_fscan(); }

@@ -38,6 +38,10 @@ DFR(MSVCRT, free)
 #define free MSVCRT$free
 DFR(MSVCRT, malloc)
 #define malloc MSVCRT$malloc
+DFR(MSVCRT, memcpy)
+#define memcpy MSVCRT$memcpy
+DFR(MSVCRT, memset)
+#define memset MSVCRT$memset
 #ifdef _DEBUG
 DFR(KERNEL32, OutputDebugStringA)
 #define OutputDebugStringA KERNEL32$OutputDebugStringA
@@ -75,16 +79,6 @@ DFR_PROTO(MSVCRT, vsprintf_s_proto, vsprintf_s)
     code;                                                                      \
     InterlockedExchange(&(lock), 0);                                           \
   } while (0)
-
-_forceinline void _memcpy(void *dst, const void *src, size_t size) {
-  for (size_t i = 0; i < size; i++)
-    ((unsigned char *)dst)[i] = ((unsigned char *)src)[i];
-}
-
-_forceinline void _memset(void *dst, int value, size_t size) {
-  for (size_t i = 0; i < size; i++)
-    ((unsigned char *)dst)[i] = (unsigned char)value;
-}
 
 /*==============================================================================
  * Log

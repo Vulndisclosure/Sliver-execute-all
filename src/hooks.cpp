@@ -282,7 +282,7 @@ BOOL WINAPI MyWriteFile(_In_ HANDLE hFile,
 #ifdef _DEBUG
       char *buffer = (char *)malloc(len + 1);
       if (buffer) {
-        _memcpy(buffer, s, len);
+        memcpy(buffer, s, len);
         buffer[len] = '\0';
         OutputDebugStringA(buffer);
         free(buffer);
@@ -509,13 +509,13 @@ HookResult HookControlCreateImpl(HookContext *ctx, void *stdin_, int stdinSize,
     CommandLineA = (char *)malloc(commandLineASize);
     if (!CommandLineA)
       return HookResultErrorCreateCommandLine;
-    _memcpy(CommandLineA, commandLineA, commandLineASize);
+    memcpy(CommandLineA, commandLineA, commandLineASize);
     if (!commandLineW)
       return HookResultErrorInvalidArgument;
     CommandLineW = (wchar_t *)malloc(commandLineWSize);
     if (!CommandLineW)
       return HookResultErrorCreateCommandLine;
-    _memcpy(CommandLineW, commandLineW, commandLineWSize);
+    memcpy(CommandLineW, commandLineW, commandLineWSize);
   }
 
   // Zero ParentProcessId
