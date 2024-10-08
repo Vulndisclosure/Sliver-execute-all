@@ -19,48 +19,6 @@
  * Import
  *============================================================================*/
 
-// clang-format off
-#ifdef BOF
-#define DFR(mod, func) DECLSPEC_IMPORT decltype(func) mod##$##func;
-DFR(KERNEL32, GetEnvironmentVariableA)
-#define GetEnvironmentVariableA KERNEL32$GetEnvironmentVariableA
-DFR(KERNEL32, SetEnvironmentVariableA)
-#define SetEnvironmentVariableA KERNEL32$SetEnvironmentVariableA
-DFR(KERNEL32, Sleep)
-#define Sleep KERNEL32$Sleep
-DFR(MSVCRT, _strtoui64)
-#define _strtoui64 MSVCRT$_strtoui64
-DFR(MSVCRT, _ui64toa)
-#define _ui64toa MSVCRT$_ui64toa
-DFR(MSVCRT, _ultoa)
-#define _ultoa MSVCRT$_ultoa
-DFR(MSVCRT, free)
-#define free MSVCRT$free
-DFR(MSVCRT, malloc)
-#define malloc MSVCRT$malloc
-DFR(MSVCRT, memcpy)
-#define memcpy MSVCRT$memcpy
-DFR(MSVCRT, memset)
-#define memset MSVCRT$memset
-#ifdef _DEBUG
-DFR(KERNEL32, OutputDebugStringA)
-#define OutputDebugStringA KERNEL32$OutputDebugStringA
-#endif
-#ifdef _DEBUG
-extern int __cdecl vsprintf_s_proto(char* const _Buffer, size_t const _BufferCount, char const* const _Format, va_list _ArgList);
-#define DFR_PROTO(mod, proto, func) DECLSPEC_IMPORT decltype(proto) mod##$##func;
-DFR(KERNEL32, MultiByteToWideChar)
-#define MultiByteToWideChar KERNEL32$MultiByteToWideChar
-DFR(KERNEL32, WideCharToMultiByte)
-#define WideCharToMultiByte KERNEL32$WideCharToMultiByte
-DFR(MSVCRT, _vscprintf)
-#define _vscprintf MSVCRT$_vscprintf
-DFR_PROTO(MSVCRT, vsprintf_s_proto, vsprintf_s)
-#define vsprintf_s MSVCRT$vsprintf_s
-#endif
-#endif
-// clang-format on
-
 #ifdef BOF
 #include "beacon.h"
 #else

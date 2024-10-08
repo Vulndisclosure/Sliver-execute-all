@@ -5,11 +5,33 @@
 #endif
 
 extern "C" {
-#include "inlineexecutepe.hpp"
+#include "inlinecommon.hpp"
 
 #include "ReflectiveLoaderEx.c"
 #include "globalshareddata.c"
 #include "simplelist1.c"
+
+WINBASEAPI NTSTATUS NTAPI NtFlushInstructionCache(HANDLE ProcessHandle,
+                                                  PVOID BaseAddress,
+                                                  ULONG NumberOfBytesToFlush);
+
+#ifdef _WIN64
+#ifdef _DEBUG
+#include "hooks_x64d_exe.h"
+#define HOOKS_EXE HOOKS_X64D_EXE
+#else
+#include "hooks_x64_exe.h"
+#define HOOKS_EXE HOOKS_X64_EXE
+#endif
+#else
+#ifdef _DEBUG
+#include "hooks_x86d_exe.h"
+#define HOOKS_EXE HOOKS_X86D_EXE
+#else
+#include "hooks_x86_exe.h"
+#define HOOKS_EXE HOOKS_X86_EXE
+#endif
+#endif
 
 // TODO: Add proxy dll loading https://github.com/kleiton0x00/Proxy-DLL-Loads
 _static HMODULE GetOrLoadDll(LPCSTR dllName) {

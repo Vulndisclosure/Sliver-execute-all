@@ -5,7 +5,7 @@
 #endif
 
 extern "C" {
-#include "inlinelistpe.hpp"
+#include "inlinecommon.hpp"
 
 #include "globalshareddata.c"
 

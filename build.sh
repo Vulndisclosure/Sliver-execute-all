@@ -5,7 +5,7 @@ CC64="x86_64-w64-mingw32-gcc"
 CC32="$CC32 -msse2"
 CC64="$CC64 -mcmodel=small"
 WARNING_FLAGS="-Wall -Wextra -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-function -Wno-unused-value -Wno-array-bounds"
-COMMON_FLAGS="-Os -fno-builtin -fno-ident -std=c++17 $WARNING_FLAGS -D JM_XORSTR_DISABLE_AVX_INTRINSICS"
+COMMON_FLAGS="-Os -fno-ident -std=c++17 $WARNING_FLAGS -D JM_XORSTR_DISABLE_AVX_INTRINSICS"
 HOOKS_FLAGS="$COMMON_FLAGS -fno-toplevel-reorder -nostdlib"
 BOF_FLAGS="$COMMON_FLAGS -D BOF"
 
@@ -35,5 +35,12 @@ $CC64 -c src/inlinelistpe.cpp $BOF_FLAGS -o bin/inlinelistpe.x64.o &
 $CC32 -c src/inlinelistpe.cpp $BOF_FLAGS -D _DEBUG -o bin/inlinelistpe.x86d.o &
 $CC64 -c src/inlinelistpe.cpp $BOF_FLAGS -D _DEBUG -o bin/inlinelistpe.x64d.o &
 wait
+
+gcc -O2 fixbof/fixbof.c -ofixbof/fixbof
+./fixbof/fixbof fixbof/apis_6.0.6000_x86.txt fixbof/apis_6.0.6000_x64.txt \
+bin/inlineexecutepe.x86.o bin/inlineexecutepe.x86d.o bin/inlineexecutepe.x64.o bin/inlineexecutepe.x64d.o \
+bin/inlinelogpe.x86.o bin/inlinelogpe.x86d.o bin/inlinelogpe.x64.o bin/inlinelogpe.x64d.o \
+bin/inlinelistpe.x86.o bin/inlinelistpe.x86d.o bin/inlinelistpe.x64.o bin/inlinelistpe.x64d.o
+rm fixbof/fixbof
 
 cp -f src/inline-execute-all.cna bin/inline-execute-all.cna

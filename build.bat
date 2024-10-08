@@ -1,7 +1,7 @@
 @echo off
 setlocal
 
-set COMMON_FLAGS=/nologo /O1 /Os /GS- /Zc:inline /permissive- /std:c++17 /W3 /D JM_XORSTR_DISABLE_AVX_INTRINSICS
+set COMMON_FLAGS=/nologo /O1 /Os /GS- /Zc:inline /permissive- /std:c++17 /W3 /D _NO_CRT_STDIO_INLINE /D _CRT_SECURE_NO_WARNINGS /D JM_XORSTR_DISABLE_AVX_INTRINSICS
 set HOOKS_LINK_FLAGS=/link /NOLOGO /OPT:REF /ENTRY:__HookControlEntry /ORDER:@hooksorder.txt /SUBSYSTEM:CONSOLE
 set BOF_FLAGS=%COMMON_FLAGS% /Gy- /GF- /D BOF
 
@@ -52,10 +52,12 @@ cl /c src\inlinelistpe.cpp %BOF_FLAGS% /Fo"bin\inlinelistpe.x64.o"
 cl /c src\inlinelistpe.cpp %BOF_FLAGS% /D _DEBUG /Fo"bin\inlinelistpe.x64d.o"
 @echo off
 
-strip\strip.exe ^
+cl /O2 /Fo"fixbof\fixbof.obj" fixbof\fixbof.c /Fe"fixbof\fixbof.exe"
+fixbof\fixbof.exe fixbof\apis_6.0.6000_x86.txt fixbof\apis_6.0.6000_x64.txt ^
 bin\inlineexecutepe.x86.o bin\inlineexecutepe.x86d.o bin\inlineexecutepe.x64.o bin\inlineexecutepe.x64d.o ^
 bin\inlinelogpe.x86.o bin\inlinelogpe.x86d.o bin\inlinelogpe.x64.o bin\inlinelogpe.x64d.o ^
 bin\inlinelistpe.x86.o bin\inlinelistpe.x86d.o bin\inlinelistpe.x64.o bin\inlinelistpe.x64d.o
+del fixbof\fixbof.obj fixbof\fixbof.exe
 
 copy /Y src\inline-execute-all.cna bin\inline-execute-all.cna
 

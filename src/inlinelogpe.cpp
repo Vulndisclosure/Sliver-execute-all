@@ -5,7 +5,7 @@
 #endif
 
 extern "C" {
-#include "inlinelogpe.hpp"
+#include "inlinecommon.hpp"
 
 #include "globalshareddata.c"
 #include "jobs.h"
