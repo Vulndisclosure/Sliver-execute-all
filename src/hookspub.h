@@ -113,6 +113,7 @@ typedef struct {
   PVOID _WaitForSingleObject;
   PVOID _WideCharToMultiByte;
   PVOID _WriteFile;
+  PVOID __beginthread;
   PVOID __vscprintf;
   PVOID _free;
   PVOID _malloc;

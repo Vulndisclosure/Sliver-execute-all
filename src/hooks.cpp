@@ -325,6 +325,20 @@ HANDLE WINAPI MyCreateThread(_In_opt_ LPSECURITY_ATTRIBUTES lpThreadAttributes,
   return hThread;
 }
 
+// cgo only
+uintptr_t __cdecl Mybeginthread(_In_ void *_StartAddress,
+                                _In_ unsigned _StackSize,
+                                _In_opt_ void *_ArgList) {
+  HANDLE hThread = (HANDLE)_beginthread(_StartAddress, _StackSize, _ArgList);
+  if (hThread == NULL || hThread == INVALID_HANDLE_VALUE)
+    return (uintptr_t)hThread;
+  DWORD threadId = GetThreadId(hThread);
+  SpinLock(ThreadListLock, SimpleListAdd(&ThreadList, DWORD, threadId));
+  TRACEF("Thread %d was created at %p with parameter %p. (cgo)", (UINT)threadId,
+         _StartAddress, _ArgList);
+  return (uintptr_t)hThread;
+}
+
 _Ret_maybenull_ PVOID WINAPI MyAddVectoredExceptionHandler(
     _In_ ULONG First, _In_ PVECTORED_EXCEPTION_HANDLER Handler) {
   PVOID handle = AddVectoredExceptionHandler(First, Handler);
@@ -474,6 +488,10 @@ FARPROC WINAPI MyGetProcAddress(_In_ HMODULE hModule, _In_ LPCSTR lpProcName) {
     if (hash == HashCT("GetProcAddress"))
       return (FARPROC)AddressOfMyGetProcAddress;
   }
+  // cgo only
+  if (hash == HashCT("_beginthread") && HasFeatures(HookFeatureGo) &&
+      hModule == GetModuleHandleA(xorstr_("msvcrt.dll")))
+    return (FARPROC)AddressOfMybeginthread;
   return GetProcAddress(hModule, lpProcName);
 }
 

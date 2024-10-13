@@ -60,6 +60,7 @@ DefineFunctionStub MyGetStdHandle, @4
 DefineFunctionStub MyProcess32NextW, @8
 DefineFunctionStub MyWriteFile, @20
 DefineFunctionStub MyCreateThread, @24
+DefineFunctionStub Mybeginthread, 
 DefineFunctionStub MyAddVectoredExceptionHandler, @8
 DefineFunctionStub MyAddVectoredContinueHandler, @8
 DefineFunctionStub MySetConsoleCtrlHandler, @8

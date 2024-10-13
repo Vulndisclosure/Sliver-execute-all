@@ -82,6 +82,7 @@ void ImportHookApis(HookContext *ctx) {
   ctx->_WideCharToMultiByte               = GetProcAddress2(kernel32, "WideCharToMultiByte");
   ctx->_WriteFile                         = GetProcAddress2(kernel32, "WriteFile");
   HMODULE msvcrt                          = GetOrLoadDll2("msvcrt.dll");
+  ctx->__beginthread                      = GetProcAddress2(msvcrt, "_beginthread");
   ctx->__vscprintf                        = GetProcAddress2(msvcrt, "_vscprintf");
   ctx->_free                              = GetProcAddress2(msvcrt, "free");
   ctx->_malloc                            = GetProcAddress2(msvcrt, "malloc");

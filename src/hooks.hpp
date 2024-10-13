@@ -22,6 +22,7 @@ _forceinline void setctx(HookContext *ctx) { ::ctx = ctx; }
 #define AddressOfMyProcess32NextW              ((void *)(&MyProcess32NextW))
 #define AddressOfMyWriteFile                   ((void *)(&MyWriteFile))
 #define AddressOfMyCreateThread                ((void *)(&MyCreateThread))
+#define AddressOfMybeginthread 			       ((void *)(&Mybeginthread))
 #define AddressOfMyAddVectoredExceptionHandler ((void *)(&MyAddVectoredExceptionHandler))
 #define AddressOfMyAddVectoredContinueHandler  ((void *)(&MyAddVectoredContinueHandler))
 #define AddressOfMySetConsoleCtrlHandler       ((void *)(&MySetConsoleCtrlHandler))
@@ -43,6 +44,7 @@ extern void *GetMyGetStdHandleStub();
 extern void *GetMyProcess32NextWStub();
 extern void *GetMyWriteFileStub();
 extern void *GetMyCreateThreadStub();
+extern void *GetMybeginthreadStub();
 extern void *GetMyAddVectoredExceptionHandlerStub();
 extern void *GetMyAddVectoredContinueHandlerStub();
 extern void *GetMySetConsoleCtrlHandlerStub();
@@ -61,6 +63,7 @@ extern void *GetWritePipeServerProcStub();
 #define AddressOfMyProcess32NextW              (GetMyProcess32NextWStub())
 #define AddressOfMyWriteFile                   (GetMyWriteFileStub())
 #define AddressOfMyCreateThread                (GetMyCreateThreadStub())
+#define AddressOfMybeginthread 			       (GetMybeginthreadStub())
 #define AddressOfMyAddVectoredExceptionHandler (GetMyAddVectoredExceptionHandlerStub())
 #define AddressOfMyAddVectoredContinueHandler  (GetMyAddVectoredContinueHandlerStub())
 #define AddressOfMySetConsoleCtrlHandler       (GetMySetConsoleCtrlHandlerStub())
@@ -74,6 +77,7 @@ extern void *GetWritePipeServerProcStub();
 #define AddressOfWritePipeServerProc           (GetWritePipeServerProcStub())
 #endif
 
+extern uintptr_t __cdecl _beginthread_proto(_In_ void* _StartAddress, _In_ unsigned _StackSize, _In_opt_ void* _ArgList);
 extern int __cdecl vsprintf_s_proto(char* const _Buffer, size_t const _BufferCount, char const* const _Format, va_list _ArgList);
 #define AddVectoredContinueHandler     ((decltype(AddVectoredContinueHandler    )*)(getctx()->_AddVectoredContinueHandler    ))
 #define AddVectoredExceptionHandler    ((decltype(AddVectoredExceptionHandler   )*)(getctx()->_AddVectoredExceptionHandler   ))
@@ -103,6 +107,7 @@ extern int __cdecl vsprintf_s_proto(char* const _Buffer, size_t const _BufferCou
 #define WaitForSingleObject            ((decltype(WaitForSingleObject           )*)(getctx()->_WaitForSingleObject           ))
 #define WideCharToMultiByte            ((decltype(WideCharToMultiByte           )*)(getctx()->_WideCharToMultiByte           ))
 #define WriteFile                      ((decltype(WriteFile                     )*)(getctx()->_WriteFile                     ))
+#define _beginthread                   ((decltype(_beginthread_proto            )*)(getctx()->__beginthread                  ))
 #define _vscprintf                     ((decltype(_vscprintf                    )*)(getctx()->__vscprintf                    ))
 #define free                           ((decltype(free                          )*)(getctx()->_free                          ))
 #define malloc                         ((decltype(malloc                        )*)(getctx()->_malloc                        ))
