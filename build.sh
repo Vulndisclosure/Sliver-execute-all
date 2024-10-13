@@ -36,8 +36,8 @@ $CC32 -c src/inlinelistpe.cpp $BOF_FLAGS -D _DEBUG -o bin/inlinelistpe.x86d.o &
 $CC64 -c src/inlinelistpe.cpp $BOF_FLAGS -D _DEBUG -o bin/inlinelistpe.x64d.o &
 wait
 
-gcc -O2 fixbof/fixbof.c -ofixbof/fixbof
-./fixbof/fixbof fixbof/apis_6.0.6000_x86.txt fixbof/apis_6.0.6000_x64.txt \
+g++ -O2 -std=c++20 fixbof/main.cc fixbof/obj.cc -lfmt -ofixbof/fixbof
+./fixbof/fixbof fixbof/link \
 bin/inlineexecutepe.x86.o bin/inlineexecutepe.x86d.o bin/inlineexecutepe.x64.o bin/inlineexecutepe.x64d.o \
 bin/inlinelogpe.x86.o bin/inlinelogpe.x86d.o bin/inlinelogpe.x64.o bin/inlinelogpe.x64d.o \
 bin/inlinelistpe.x86.o bin/inlinelistpe.x86d.o bin/inlinelistpe.x64.o bin/inlinelistpe.x64d.o

@@ -34,7 +34,7 @@ WINBASEAPI NTSTATUS NTAPI NtFlushInstructionCache(HANDLE ProcessHandle,
 #endif
 
 // TODO: Add proxy dll loading https://github.com/kleiton0x00/Proxy-DLL-Loads
-_static HMODULE GetOrLoadDll(LPCSTR dllName) {
+HMODULE GetOrLoadDll(LPCSTR dllName) {
   HMODULE handle = GetModuleHandleA(dllName);
   if (handle)
     return handle;
@@ -46,10 +46,11 @@ _static HMODULE GetOrLoadDll(LPCSTR dllName) {
 #define GetOrLoadDll2(m) GetOrLoadDll(xorstr_(m))
 #define GetProcAddress2(m, f) ((PVOID)GetProcAddress(m, xorstr_(f)))
 
-#include "jobs.c"
+#include "jobs1.c"
+#include "jobs2.c"
 #include "seh.c"
 
-_static void ImportHookApis(HookContext *ctx) {
+void ImportHookApis(HookContext *ctx) {
   // clang-format off
   HMODULE kernel32                        = GetOrLoadDll2("kernel32.dll");
   ctx->_AddVectoredContinueHandler        = GetProcAddress2(kernel32, "AddVectoredContinueHandler");

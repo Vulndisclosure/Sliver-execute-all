@@ -72,11 +72,11 @@ DWORD WINAPI ReadPipeServerProc(LPVOID lpThreadParameter) {
 }
 
 /*
-_forceinline BOOL CreateReadPipeServer(PipeServer *pipe) {
+BOOL CreateReadPipeServer(PipeServer *pipe) {
   return CreatePipeServer(pipe, NULL, 0x1000, ReadPipeServerProc);
 }
 */
-_forceinline BOOL CreateReadPipeServer(PipeServer *pipe, void *proc) {
+BOOL CreateReadPipeServer(PipeServer *pipe, void *proc) {
   return CreatePipeServer(pipe, NULL, 0x1000, (LPTHREAD_START_ROUTINE)proc);
 }
 
@@ -129,13 +129,12 @@ DWORD WINAPI WritePipeServerProc(LPVOID lpThreadParameter) {
 }
 
 /*
-_forceinline BOOL CreateWritePipeServer(PipeServer *pipe, void *buffer,
-                                         int size) {
+BOOL CreateWritePipeServer(PipeServer *pipe, void *buffer, int size) {
   return CreatePipeServer(pipe, buffer, size, WritePipeServerProc);
 }
 */
-_forceinline BOOL CreateWritePipeServer(PipeServer *pipe, void *buffer,
-                                        int size, void *proc) {
+BOOL CreateWritePipeServer(PipeServer *pipe, void *buffer, int size,
+                           void *proc) {
   return CreatePipeServer(pipe, buffer, size, (LPTHREAD_START_ROUTINE)proc);
 }
 

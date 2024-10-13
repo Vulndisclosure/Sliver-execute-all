@@ -366,3 +366,5 @@ FodyWeavers.xsd
 bin
 hooks_*_exe.h
 !hooks.*.obj
+!fixbof/link/*/
+!fixbof/link/*/**

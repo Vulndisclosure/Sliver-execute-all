@@ -1,6 +1,6 @@
 #include "globalshareddata.h"
 
-_static GlobalSharedData *GetGlobalSharedData() {
+GlobalSharedData *GetGlobalSharedData() {
   // Create the key of shared data
   const char time[9] = /*__TIME__*/ "12:34:56";
   DWORD key = (DWORD)(SIZE_T)NtCurrentProcessId();

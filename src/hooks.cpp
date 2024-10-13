@@ -413,7 +413,7 @@ DWORD WINAPI MyTlsAlloc() {
 FARPROC WINAPI MyGetProcAddress(_In_ HMODULE hModule, _In_ LPCSTR lpProcName) {
   if ((SIZE_T)lpProcName < 0x10000) {
     // TRACEF("GetProcAddress was called. (hModule: %p, nOrdinal: %d)", hModule,
-    //        (WORD)lpProcName);
+    //        (WORD)(SIZE_T)lpProcName);
     return GetProcAddress(hModule, lpProcName);
   }
   // TRACEF("GetProcAddress was called. (hModule: %p, lpProcName: %s)", hModule,

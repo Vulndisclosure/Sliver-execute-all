@@ -1,5 +1,5 @@
 #ifdef _WIN64
-_static _forceinline PVOID GetFunctionTable(PVOID imageBase, PDWORD size) {
+PVOID GetFunctionTable(PVOID imageBase, PDWORD size) {
   PIMAGE_NT_HEADERS ntHeaders =
       (PIMAGE_NT_HEADERS)((PBYTE)imageBase +
                           ((PIMAGE_DOS_HEADER)imageBase)->e_lfanew);
@@ -13,7 +13,7 @@ _static _forceinline PVOID GetFunctionTable(PVOID imageBase, PDWORD size) {
   return (PVOID)functionTable;
 }
 
-_static _forceinline PVOID EnableSEH(PVOID imageBase) {
+PVOID EnableSEH(PVOID imageBase) {
   DWORD size = 0;
   PRUNTIME_FUNCTION functionTable =
       (PRUNTIME_FUNCTION)GetFunctionTable(imageBase, &size);
@@ -25,7 +25,7 @@ _static _forceinline PVOID EnableSEH(PVOID imageBase) {
 #define ImageBaseListMax 16
 
 // See seh.x86.asm
-_static const unsigned char NtQueryVirtualMemoryHook[169] = {
+const unsigned char NtQueryVirtualMemoryHook[169] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -53,7 +53,7 @@ _static const unsigned char NtQueryVirtualMemoryHook[169] = {
   (void *)(((char *)(from) + 5) + *(int *)((char *)(from) + 1))
 
 // Hook NtQueryVirtualMemory to bypass RtlIsValidHandler
-_static bool InstallNtQueryVirtualMemoryHook(PVOID **imageBaseList) {
+bool InstallNtQueryVirtualMemoryHook(PVOID **imageBaseList) {
   // Get ntdll!NtQueryVirtualMemory
   PVOID target =
       GetProcAddress2(GetOrLoadDll2("ntdll.dll"), "NtQueryVirtualMemory");
@@ -119,7 +119,7 @@ _static bool InstallNtQueryVirtualMemoryHook(PVOID **imageBaseList) {
   return true;
 }
 
-_static PVOID EnableSEH(PVOID imageBase) {
+PVOID EnableSEH(PVOID imageBase) {
   // Remove SafeSEH data directory if C++ x86
   PIMAGE_NT_HEADERS ntHeaders =
       (PIMAGE_NT_HEADERS)((PBYTE)imageBase +

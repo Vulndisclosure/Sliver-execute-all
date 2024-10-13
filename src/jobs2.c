@@ -1,7 +1,6 @@
 #include "jobs.h"
 
-_static _forceinline BOOL IsExecutableRegion(PVOID address,
-                                             PMEMORY_BASIC_INFORMATION mbi) {
+BOOL IsExecutableRegion(PVOID address, PMEMORY_BASIC_INFORMATION mbi) {
   if (!address || !mbi)
     return FALSE;
 
@@ -14,7 +13,7 @@ _static _forceinline BOOL IsExecutableRegion(PVOID address,
                           PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY));
 }
 
-_static BOOL FindExecutableRegion(PVOID hint, PVOID *address, PSIZE_T size) {
+BOOL FindExecutableRegion(PVOID hint, PVOID *address, PSIZE_T size) {
   if (!hint || !address || !size)
     return FALSE;
 
@@ -56,9 +55,8 @@ _static BOOL FindExecutableRegion(PVOID hint, PVOID *address, PSIZE_T size) {
   return TRUE;
 }
 
-_static _forceinline SIZE_T FindPattern(PVOID address, SIZE_T size,
-                                        const USHORT *pattern,
-                                        SIZE_T patternSize) {
+SIZE_T FindPattern(PVOID address, SIZE_T size, const USHORT *pattern,
+                   SIZE_T patternSize) {
   if (!address || !pattern || patternSize == 0 || size < patternSize)
     return SIZE_MAX;
 
@@ -84,8 +82,7 @@ _static _forceinline SIZE_T FindPattern(PVOID address, SIZE_T size,
   (void *)(((char *)(op) + 4) + *(int *)((char *)(op)))
 #define DECODE_IMM32_OP(op) (void *)(*(unsigned int *)(op))
 
-_static BOOL FindJobList(PVOID hint, JobEntry ***ppJobList,
-                         int **ppJobIdCounter) {
+BOOL FindJobList(PVOID hint, JobEntry ***ppJobList, int **ppJobIdCounter) {
   if (!hint || !ppJobList || !ppJobIdCounter)
     return FALSE;
 
@@ -167,7 +164,7 @@ _static BOOL FindJobList(PVOID hint, JobEntry ***ppJobList,
   return FALSE;
 }
 
-_static _forceinline void AddJob_(JobEntry *entry, JobEntry **list) {
+void AddJob_(JobEntry *entry, JobEntry **list) {
   JobEntry *current = *list;
   if (current) {
     JobEntry *previous = NULL;
@@ -181,10 +178,8 @@ _static _forceinline void AddJob_(JobEntry *entry, JobEntry **list) {
   }
 }
 
-_static _forceinline JobEntry *CreateJobV1(int id, HANDLE hReadPipe,
-                                           HANDLE hWritePipe, int type,
-                                           const char *description,
-                                           JobEntry **list) {
+JobEntry *CreateJobV1(int id, HANDLE hReadPipe, HANDLE hWritePipe, int type,
+                      const char *description, JobEntry **list) {
   JobEntryV1 *entry = (JobEntryV1 *)malloc(sizeof(JobEntryV1));
   if (!entry)
     return NULL;
@@ -207,10 +202,8 @@ _static _forceinline JobEntry *CreateJobV1(int id, HANDLE hReadPipe,
   return (JobEntry *)entry;
 }
 
-_static _forceinline JobEntry *CreateJobV2(int id, HANDLE hReadPipe,
-                                           HANDLE hWritePipe, int type,
-                                           const char *description,
-                                           JobEntry **list) {
+JobEntry *CreateJobV2(int id, HANDLE hReadPipe, HANDLE hWritePipe, int type,
+                      const char *description, JobEntry **list) {
   JobEntryV2 *entry = (JobEntryV2 *)malloc(sizeof(JobEntryV2));
   if (!entry)
     return NULL;
@@ -234,8 +227,8 @@ _static _forceinline JobEntry *CreateJobV2(int id, HANDLE hReadPipe,
   return (JobEntry *)entry;
 }
 
-_static BOOL SimpleAddJob(int version, int type, const char *description,
-                          JobEntry ***list, int *id, PHANDLE hWritePipe) {
+BOOL SimpleAddJob(int version, int type, const char *description,
+                  JobEntry ***list, int *id, PHANDLE hWritePipe) {
   *list = NULL;
   *id = -1;
   *hWritePipe = NULL;

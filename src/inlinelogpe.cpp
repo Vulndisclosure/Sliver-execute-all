@@ -8,7 +8,7 @@ extern "C" {
 #include "inlinecommon.hpp"
 
 #include "globalshareddata.c"
-#include "jobs.h"
+#include "jobs1.c"
 #include "simplelist1.c"
 
 void InlineLogPE(void *imageBase) {

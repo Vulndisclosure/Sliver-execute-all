@@ -3,18 +3,6 @@
 #include <stdio.h>
 #include <windows.h>
 
-#ifdef BOF
-#define _static
-#else
-#define _static static
-#endif
-
-#ifdef _MSC_VER
-#define _forceinline __forceinline
-#else
-#define _forceinline __attribute__((always_inline)) inline
-#endif
-
 /*==============================================================================
  * Import
  *============================================================================*/

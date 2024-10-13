@@ -1,7 +1,7 @@
 #include "simplelist.h"
 #include <stdlib.h>
 
-_forceinline int SimpleListAlloc(SimpleList *list, int initialSize) {
+int SimpleListAlloc(SimpleList *list, int initialSize) {
   list->Buffer = malloc(initialSize);
   if (list->Buffer) {
     list->Size = 0;
@@ -14,7 +14,7 @@ _forceinline int SimpleListAlloc(SimpleList *list, int initialSize) {
   }
 }
 
-_forceinline void SimpleListFree(SimpleList *list) {
+void SimpleListFree(SimpleList *list) {
   if (list->Buffer) {
     free(list->Buffer);
     list->Buffer = NULL;
