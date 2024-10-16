@@ -1,4 +1,5 @@
 #include "globalshareddata.h"
+#include <intrin.h>
 
 GlobalSharedData *GetGlobalSharedData() {
   // Create the key of shared data

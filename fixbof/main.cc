@@ -8,6 +8,7 @@
 #include <span>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace fs = std::filesystem;
@@ -39,6 +40,49 @@ using ApiMap = std::unordered_map<std::string, std::vector<std::string>,
 using IntrinsicMap =
     std::unordered_map<std::string, std::shared_ptr<std::vector<uint8_t>>,
                        string_hash, std::equal_to<>>;
+
+const std::unordered_set<std::string_view> kBeaconApis = {
+    "LoadLibraryA",
+    "FreeLibrary",
+    "GetProcAddress",
+    "GetModuleHandleA",
+    "BeaconDataParse",
+    "BeaconDataPtr",
+    "BeaconDataInt",
+    "BeaconDataShort",
+    "BeaconDataLength",
+    "BeaconDataExtract",
+    "BeaconFormatAlloc",
+    "BeaconFormatReset",
+    "BeaconFormatAppend",
+    "BeaconFormatPrintf",
+    "BeaconFormatToString",
+    "BeaconFormatFree",
+    "BeaconFormatInt",
+    "BeaconOutput",
+    "BeaconPrintf",
+    "BeaconErrorD",
+    "BeaconErrorDD",
+    "BeaconErrorNA",
+    "BeaconUseToken",
+    "BeaconRevertToken",
+    "BeaconIsAdmin",
+    "BeaconGetSpawnTo",
+    "BeaconInjectProcess",
+    "BeaconInjectTemporaryProcess",
+    "BeaconSpawnTemporaryProcess",
+    "BeaconCleanupProcess",
+    "toWideChar",
+    "BeaconInformation",
+    "BeaconAddValue",
+    "BeaconGetValue",
+    "BeaconRemoveValue",
+    "BeaconDataStoreGetItem",
+    "BeaconDataStoreProtectItem",
+    "BeaconDataStoreUnprotectItem",
+    "BeaconDataStoreMaxEntries",
+    "BeaconGetCustomUserData",
+};
 
 const std::array<std::string_view, 35> kPreferredModules = {
     "kernel32.dll", "kernelbase.dll", "advapi32.dll", "bcrypt.dll",
@@ -262,8 +306,7 @@ size_t FixImports(ObjectSection &text_section, const ApiMap &apis,
             is_import, is_cdecl, is_stdcall);
 
     // Don't process beacon APIs
-    bool is_beacon_api =
-        demangled_name.starts_with("Beacon") || demangled_name == "toWideChar";
+    bool is_beacon_api = kBeaconApis.contains(demangled_name);
     if (is_beacon_api) {
       traceln("Skipped beacon API: {}", name);
       continue;
