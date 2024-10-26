@@ -1,21 +1,98 @@
 @echo off
-setlocal
+setlocal EnableDelayedExpansion
 
-call :VCVARSALL x86
-if errorlevel 1 echo Failed to initialize x86 environment. & exit /b 1
+call :SETUP_ENV
 
-ml /Fo src\hooks.x86.obj /c src\hooks.x86.asm
+call :SET_ENV MSVC_X86
+ml /nologo /Fo src\hooks.x86.obj /c src\hooks.x86.asm
 
-call :VCVARSALL x64
-if errorlevel 1 echo Failed to initialize x64 environment. & exit /b 1
+call :SET_ENV MSVC_X64
+ml64 /nologo /Fo src\hooks.x64.obj /c src\hooks.x64.asm
 
-ml64 /Fo src\hooks.x64.obj /c src\hooks.x64.asm
-
-strip\strip.exe src\hooks.x86.obj src\hooks.x64.obj
+cl /nologo tools\strip.c /Fe"tools\strip.exe"
+tools\strip.exe src\hooks.x86.obj src\hooks.x64.obj
+del tools\strip.exe strip.obj
 
 endlocal
 
 exit /b 0
+
+:: SETUP_ENV Function - Initializes environment variables for x86 and x64 builds
+:: Usage: CALL :SETUP_ENV
+:SETUP_ENV
+
+rem Save the current environment variables
+call :SAVE_ENV BASE
+
+rem Initialize x86 environments
+call :VCVARSALL x86
+if errorlevel 1 echo Failed to initialize x86 environment. & exit /b 1
+call :SAVE_ENV MSVC_X86
+
+rem Initialize x64 environments
+call :VCVARSALL x64
+if errorlevel 1 echo Failed to initialize x64 environment. & exit /b 1
+call :SAVE_ENV MSVC_X64
+
+rem Restore the original environment variables
+call :SET_ENV BASE
+
+goto :EOF
+
+
+:: SAVE_ENV Function - Backs up current environment variables with a specified name prefix
+:: Usage: CALL :SAVE_ENV MyBackup
+:SAVE_ENV
+if "%~1"=="" (
+    echo Please provide a backup name.
+    goto :EOF
+)
+
+for /f "tokens=1,* delims==" %%A in ('set') do (
+    rem Check if the variable already starts with __ENV_, skip if true
+    set "T=%%A"
+    if /i "!T:~0,6!" neq "__ENV_" (
+        set "__ENV_%~1_%%A=%%B"
+    )
+)
+set T=
+goto :EOF
+
+
+:: SET_ENV Function - Clears non-__ENV_ variables, then restores from the specified name prefix
+:: Usage: CALL :SET_ENV MyBackup
+:SET_ENV
+if "%~1"=="" (
+    echo Please provide a backup name.
+    goto :EOF
+)
+
+:: Step 1: Clear all non-__ENV_ variables
+for /f "tokens=1,* delims==" %%A in ('set') do (
+	set "T=%%A"
+    if /i "!T:~0,6!" neq "__ENV_" (
+        set "%%A="
+    )
+)
+set T=
+
+:: Step 2: Restore variables with the specified prefix
+set "P=__ENV_%~1_"
+for /f "tokens=1,* delims==" %%A in ('set %P%') do (
+    set "N=%%A"
+    set "V=%%B"
+	
+	rem Extract original variable name by removing prefix
+	set "N=!N:%P%=!"
+
+    rem Restore the environment variable
+    set "!N!=!V!"
+)
+set P=
+set N=
+set V=
+goto :EOF
+
 
 @REM Copied from https://github.com/dotnet/runtime/blob/v8.0.0/src/coreclr/nativeaot/BuildIntegration/findvcvarsall.bat
 :VCVARSALL
