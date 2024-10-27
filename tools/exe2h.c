@@ -96,6 +96,21 @@ char *exe2h(void *pe_image, const char *variable_name) {
   if (nt_headers->Signature != IMAGE_NT_SIGNATURE)
     return NULL;
 
+  // Check the relocation table
+  PIMAGE_DATA_DIRECTORY reloc_directory = NULL;
+  if (nt_headers->OptionalHeader.Magic == IMAGE_NT_OPTIONAL_HDR32_MAGIC)
+    reloc_directory =
+        &((PIMAGE_NT_HEADERS32)nt_headers)
+             ->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC];
+  else
+    reloc_directory =
+        &((PIMAGE_NT_HEADERS64)nt_headers)
+             ->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC];
+  if (reloc_directory->VirtualAddress) {
+    printf("The .text section contains relocations\n");
+    return NULL;
+  }
+
   // Find the .text section
   PIMAGE_SECTION_HEADER sections = IMAGE_FIRST_SECTION(nt_headers);
   PIMAGE_SECTION_HEADER text_section = NULL;
@@ -108,7 +123,7 @@ char *exe2h(void *pe_image, const char *variable_name) {
   if (!text_section)
     return NULL;
   uint32_t text_offset = (uint32_t)text_section->PointerToRawData;
-  uint32_t text_size = (uint32_t)text_section->SizeOfRawData;
+  uint32_t text_size = (uint32_t)text_section->Misc.VirtualSize;
   if (!text_offset || !text_size)
     return NULL;
   uint8_t *text_data = (uint8_t *)pe_image + text_offset;

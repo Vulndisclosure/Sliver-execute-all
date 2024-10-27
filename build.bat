@@ -53,6 +53,7 @@ endlocal
 
 exit /b 0
 
+
 :: SETUP_ENV Function - Initializes environment variables for x86 and x64 builds
 :: Usage: CALL :SETUP_ENV
 :SETUP_ENV

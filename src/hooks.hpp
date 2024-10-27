@@ -13,27 +13,9 @@
 // In hooks.*.asm
 #ifdef _WIN64
 extern HookContext *ctx;
-_forceinline HookContext *getctx() { return ctx; }
-_forceinline void setctx(HookContext *ctx) { ::ctx = ctx; }
-#define AddressOfMyExitProcess                 ((void *)(&MyExitProcess))
-#define AddressOfMyGetCommandLineA             ((void *)(&MyGetCommandLineA))
-#define AddressOfMyGetCommandLineW             ((void *)(&MyGetCommandLineW))
-#define AddressOfMyGetStdHandle                ((void *)(&MyGetStdHandle))
-#define AddressOfMyProcess32NextW              ((void *)(&MyProcess32NextW))
-#define AddressOfMyWriteFile                   ((void *)(&MyWriteFile))
-#define AddressOfMyCreateThread                ((void *)(&MyCreateThread))
-#define AddressOfMybeginthread 			       ((void *)(&Mybeginthread))
-#define AddressOfMyAddVectoredExceptionHandler ((void *)(&MyAddVectoredExceptionHandler))
-#define AddressOfMyAddVectoredContinueHandler  ((void *)(&MyAddVectoredContinueHandler))
-#define AddressOfMySetConsoleCtrlHandler       ((void *)(&MySetConsoleCtrlHandler))
-#define AddressOfMyVirtualAlloc                ((void *)(&MyVirtualAlloc))
-#define AddressOfMyVirtualFree                 ((void *)(&MyVirtualFree))
-#define AddressOfMyTlsAlloc                    ((void *)(&MyTlsAlloc))
-#define AddressOfMyGetProcAddress              ((void *)(&MyGetProcAddress))
-#define AddressOfRunExeEntryProc               ((void *)(&RunExeEntryProc))
-#define AddressOfHookControlSelfUnloadProc     ((void *)(&HookControlSelfUnloadProc))
-#define AddressOfReadPipeServerProc            ((void *)(&ReadPipeServerProc))
-#define AddressOfWritePipeServerProc           ((void *)(&WritePipeServerProc))
+inline HookContext *getctx() { return ctx; }
+inline void setctx(HookContext *ctx) { ::ctx = ctx; }
+#define AddressOf(x) ((void *)(&(x)))
 #else
 extern HookContext *getctx();
 extern void setctx(HookContext *ctx);
@@ -56,25 +38,7 @@ extern void *GetRunExeEntryProcStub();
 extern void *GetHookControlSelfUnloadProcStub();
 extern void *GetReadPipeServerProcStub();
 extern void *GetWritePipeServerProcStub();
-#define AddressOfMyExitProcess                 (GetMyExitProcessStub())
-#define AddressOfMyGetCommandLineA             (GetMyGetCommandLineAStub())
-#define AddressOfMyGetCommandLineW             (GetMyGetCommandLineWStub())
-#define AddressOfMyGetStdHandle                (GetMyGetStdHandleStub())
-#define AddressOfMyProcess32NextW              (GetMyProcess32NextWStub())
-#define AddressOfMyWriteFile                   (GetMyWriteFileStub())
-#define AddressOfMyCreateThread                (GetMyCreateThreadStub())
-#define AddressOfMybeginthread 			       (GetMybeginthreadStub())
-#define AddressOfMyAddVectoredExceptionHandler (GetMyAddVectoredExceptionHandlerStub())
-#define AddressOfMyAddVectoredContinueHandler  (GetMyAddVectoredContinueHandlerStub())
-#define AddressOfMySetConsoleCtrlHandler       (GetMySetConsoleCtrlHandlerStub())
-#define AddressOfMyVirtualAlloc                (GetMyVirtualAllocStub())
-#define AddressOfMyVirtualFree                 (GetMyVirtualFreeStub())
-#define AddressOfMyTlsAlloc                    (GetMyTlsAllocStub())
-#define AddressOfMyGetProcAddress              (GetMyGetProcAddressStub())
-#define AddressOfRunExeEntryProc               (GetRunExeEntryProcStub())
-#define AddressOfHookControlSelfUnloadProc     (GetHookControlSelfUnloadProcStub())
-#define AddressOfReadPipeServerProc            (GetReadPipeServerProcStub())
-#define AddressOfWritePipeServerProc           (GetWritePipeServerProcStub())
+#define AddressOf(x) (Get##x##Stub())
 #endif
 
 extern uintptr_t __cdecl _beginthread_proto(_In_ void* _StartAddress, _In_ unsigned _StackSize, _In_opt_ void* _ArgList);
@@ -151,7 +115,7 @@ extern int __cdecl vsprintf_s_proto(char* const _Buffer, size_t const _BufferCou
  * Log
  *============================================================================*/
 
-extern void BeaconPrintfPostMsg(int type, const char *fmt, ...);
+void BeaconPrintfPostMsg(int type, const char *fmt, ...);
 #define _BeaconPrint(a, b, ...) BeaconPrintfPostMsg(a, b, ##__VA_ARGS__)
 
 #define PRINTF(a, ...) _BeaconPrint(CALLBACK_OUTPUT, xorstr_(a), ##__VA_ARGS__)
