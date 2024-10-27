@@ -1,12 +1,22 @@
 #include "pipeserver.h"
 
-BOOL CreatePipeServer(PipeServer *pipe, void *buffer, int size,
+#ifndef AddressOf
+#define AddressOf(x) ((void *)(&(x)))
+#endif
+
+BOOL CreatePipeServer(PipeServer *pipe, BOOL write, void *buffer, int size,
                       LPTHREAD_START_ROUTINE proc) {
-  // Fill pipe server structure
   PipeServer t = {};
+  // Fill pipe server structure
   HANDLE hThread = NULL;
   if (!CreatePipe((PHANDLE)&t.ReadHandle, (PHANDLE)&t.WriteHandle, NULL, 0))
     goto err;
+  if (write && (!buffer || !size)) {
+    // Handle write pipe server with empty buffer specially
+    CloseHandle(t.WriteHandle);
+    t.WriteHandle = NULL;
+    return TRUE;
+  }
   if (!(t.Buffer = (SimpleList *)malloc(sizeof(SimpleList))))
     goto err;
   if (!SimpleListAlloc(t.Buffer, size))
@@ -71,13 +81,10 @@ DWORD WINAPI ReadPipeServerProc(LPVOID lpThreadParameter) {
   return 0;
 }
 
-/*
 BOOL CreateReadPipeServer(PipeServer *pipe) {
-  return CreatePipeServer(pipe, NULL, 0x1000, ReadPipeServerProc);
-}
-*/
-BOOL CreateReadPipeServer(PipeServer *pipe, void *proc) {
-  return CreatePipeServer(pipe, NULL, 0x1000, (LPTHREAD_START_ROUTINE)proc);
+  return CreatePipeServer(
+      pipe, FALSE, NULL, 0x1000,
+      (LPTHREAD_START_ROUTINE)AddressOf(ReadPipeServerProc));
 }
 
 void CloseReadPipeServer(PipeServer *pipe, BOOL freeBuffer) {
@@ -122,20 +129,18 @@ DWORD WINAPI WritePipeServerProc(LPVOID lpThreadParameter) {
                  "error: %x)",
                  pipe->Buffer->Size, bytesWritten, (UINT)NtLastError());
   }
+  CloseHandle(pipe->WriteHandle);
+  pipe->WriteHandle = NULL;
 
   SetEvent(pipe->StoppedEvent);
 
   return 0;
 }
 
-/*
 BOOL CreateWritePipeServer(PipeServer *pipe, void *buffer, int size) {
-  return CreatePipeServer(pipe, buffer, size, WritePipeServerProc);
-}
-*/
-BOOL CreateWritePipeServer(PipeServer *pipe, void *buffer, int size,
-                           void *proc) {
-  return CreatePipeServer(pipe, buffer, size, (LPTHREAD_START_ROUTINE)proc);
+  return CreatePipeServer(
+      pipe, TRUE, buffer, size,
+      (LPTHREAD_START_ROUTINE)AddressOf(WritePipeServerProc));
 }
 
 void CloseWritePipeServer(PipeServer *pipe) {
@@ -157,7 +162,9 @@ void CloseWritePipeServer(PipeServer *pipe) {
   }
 
   // Free internal buffer
-  SimpleListFree(pipe->Buffer);
-  free(pipe->Buffer);
-  pipe->Buffer = NULL;
+  if (pipe->Buffer) {
+    SimpleListFree(pipe->Buffer);
+    free(pipe->Buffer);
+    pipe->Buffer = NULL;
+  }
 }

@@ -93,7 +93,7 @@ Usage:   inline-list-pe
 )
 
 alias inline-execute-cpp {
-    local('$bid $stdin $exepath $cmdline');
+    local('$bid $stdinpath $exepath $cmdline');
     ($bid) = @_;
     trace_init($bid);
 
@@ -103,14 +103,14 @@ alias inline-execute-cpp {
     }
 
     # Parse arguments
-    ($stdin, $exepath, $cmdline) = parse_args(@_, $0);
+    ($stdinpath, $exepath, $cmdline) = parse_args(@_, $0);
 
     # Invoke inlineexecutepe.o
-    inline_execute_pe($bid, $features_cpp, $stdin, $exepath, $cmdline);
+    inline_execute_pe($bid, $features_cpp, $stdinpath, $exepath, $cmdline);
 }
 
 alias inline-execute-go {
-    local('$bid $stdin $exepath $cmdline');
+    local('$bid $stdinpath $exepath $cmdline');
     ($bid) = @_;
     trace_init($bid);
 
@@ -120,10 +120,10 @@ alias inline-execute-go {
     }
 
     # Parse arguments
-    ($stdin, $exepath, $cmdline) = parse_args(@_, $0);
+    ($stdinpath, $exepath, $cmdline) = parse_args(@_, $0);
 
     # Invoke inlineexecutepe.o
-    inline_execute_pe($bid, $features_go, $stdin, $exepath, $cmdline);
+    inline_execute_pe($bid, $features_go, $stdinpath, $exepath, $cmdline);
 }
 
 alias inline-log-pe {
@@ -174,11 +174,13 @@ alias inline-list-pe {
 #   $1 - @args - Pass @_ in the alias function
 #   $2 - $rawargs - Pass $0 in the alias function
 sub parse_args {
-    local('@args $rawargs $state $i $t $exepath $cmdline $stdin');
+    local('@args $rawargs $state $skipcount $i $t $stdinpath $exepath $cmdline');
     (@args, $rawargs) = @_;
 
     # Parse arguments
     $state = 0;
+    $skipcount = 1;
+    $stdinpath = '';
     for ($i = 1; $i < size(@args); $i++) {
         $t = @args[$i];
         # trace('[parse_args] Parse arg: ' . $t);
@@ -186,7 +188,11 @@ sub parse_args {
             # Parse additional options
             if ($t eq '-l') {
                 # TODO: local like inline-execute-pe
-                # TODO: stdin argument?
+            } else if ($t eq '-i') {
+                $i++;
+                $stdinpath = @args[$i];
+                $skipcount += 2;
+                trace('[parse_args] stdinpath was set: ' . $stdinpath);
             } else {
                 $state = 1;
                 $i--;
@@ -204,7 +210,9 @@ sub parse_args {
 
     # Parse raw command line
     $cmdline = skip_arg($rawargs);
-    $cmdline = skip_arg($cmdline);
+    for (; $skipcount > 0; $skipcount--) {
+        $cmdline = skip_arg($cmdline);
+    }
     if (strlen($cmdline) != 0) {
         $cmdline = getFileName($exepath) . ' ' . $cmdline;
     } else {
@@ -212,20 +220,19 @@ sub parse_args {
     }
     trace('[parse_args] cmdline was set: ' . $cmdline . ' (' . strlen($cmdline) . ')');
 
-    $stdin = '';
-    return @($stdin, $exepath, $cmdline);
+    return @($stdinpath, $exepath, $cmdline);
 }
 
 # Invoke inlineexecutepe.o
 # Arguments
 #   $1 - $bid
 #   $2 - $features
-#   $5 - $stdin - TODO: Reserved
+#   $5 - $stdinpath
 #   $6 - $exepath - The path to the exe on the attacker machine.
 #   $7 - $cmdline - Raw command-line. e.g. (frpc.exe stcp -s test.com -P 1234 -t 1234 -n "my name" -l 1234)
 sub inline_execute_pe {
-    local('$bid $features $stdin $exepath $cmdline $exe $jobver $barch $bof $args');
-    ($bid, $features, $stdin, $exepath, $cmdline) = @_;
+    local('$bid $features $stdinpath $exepath $cmdline $exe $stdin $jobver $barch $bof $args');
+    ($bid, $features, $stdinpath, $exepath, $cmdline) = @_;
 
     # Get the beacon architecture to select the corresponding BOF
     $barch = barch($bid);
@@ -236,18 +243,27 @@ sub inline_execute_pe {
         berror($bid, 'The PE file does not exist or is empty: ' . $exepath);
         return;
     }
+    if ($stdinpath ne '') {
+        $stdin = read_file($stdinpath);
+        if (strlen($stdin) == 0) {
+            berror($bid, 'The stdin file does not exist or is empty: ' . $stdinpath);
+            return;
+        }
+    } else {
+        $stdin = '';
+    }
     if ($use_job) {
         $jobver = get_job_version();
     } else {
         $jobver = 0;
     }
 
-    trace('inline-execute-pe arguments: ' . 'features: 0x' . formatNumber($features, 16) . ', exe: ' . $exepath . ' (' . format_size(strlen($exe)) . '), cmdline: ' . $cmdline . ' (' . strlen($cmdline) . '), jobver: ' . $jobver);
+    trace('inline-execute-pe arguments: ' . 'features: 0x' . formatNumber($features, 16) . ', exe: ' . $exepath . ' (' . format_size(strlen($exe)) . '), cmdline: ' . $cmdline . ' (' . strlen($cmdline) . '), jobver: ' . $jobver. ', stdin: ' . $stdinpath . ' (' . format_size(strlen($stdin)) . ')');
 
     # Execute BOF
     trace('[inline_execute_pe] Begin execute BOF.');
     $bof = read_script_resource('inlineexecutepe.' . $barch . $debug_bof_suffix . '.o');
-    $args = bof_pack($bid, 'izbzi', $features, $stdin, $exe, $cmdline, $jobver);
+    $args = bof_pack($bid, 'ibbzi', $features, $stdin, $exe, $cmdline, $jobver);
     beacon_inline_execute($bid, $bof, 'go', $args);
     trace('[inline_execute_pe] End execute BOF.');
 }

@@ -60,13 +60,15 @@ void InlineLogPE(void *imageBase) {
     goto out;
   }
   if (output->Stdout) {
-    _BeaconPrint(output->Type, xorstr_("Stdout: %.*s"), output->Stdout->Size,
-                 (char *)output->Stdout->Buffer);
+    if (output->Stdout->Size)
+      _BeaconPrint(output->Type, xorstr_("Stdout: %.*s"), output->Stdout->Size,
+                   (char *)output->Stdout->Buffer);
     SimpleListFree(output->Stdout);
   }
   if (output->Stderr) {
-    _BeaconPrint(output->Type, xorstr_("Stderr: %.*s"), output->Stderr->Size,
-                 (char *)output->Stderr->Buffer);
+    if (output->Stderr->Size)
+      _BeaconPrint(output->Type, xorstr_("Stderr: %.*s"), output->Stderr->Size,
+                   (char *)output->Stderr->Buffer);
     SimpleListFree(output->Stderr);
   }
   SimpleListFree(&output->Logs);

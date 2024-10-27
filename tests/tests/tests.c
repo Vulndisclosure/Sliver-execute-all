@@ -128,7 +128,7 @@ void test_seh() {
   HookFeatures features = HookFeatureStreamingOutput | HookFeatureUnload |
                           HookFeatureCpp | HookFeatureCppSEH;
   char stdin_[] = "";
-  char commandLine[] = "dummy.exe arg1 \"a r g 2\" ÖÐÎÄ";
+  char commandLine[] = "dummy.exe";
   size_t peImageSize = 0;
   void *peImage = readfile("helloworld_seh_c." archstr ".exe", &peImageSize);
   HANDLE hEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
@@ -137,6 +137,35 @@ void test_seh() {
   if (peImage) {
     for (size_t i = 0; i < loopcount; i++) {
       result = InlineExecutePE(features, stdin_, sizeof(stdin_), peImage,
+                               (int)peImageSize, commandLine,
+                               sizeof(commandLine), 0, hEvent, &imageBase);
+      if (result != HookResultSuccess)
+        __debugbreak();
+      InlineListPE();
+      WaitForSingleObject(hEvent, INFINITE);
+      ResetEvent(hEvent);
+      InlineLogPE(imageBase);
+      statement_after_execution;
+    }
+    free(peImage);
+  }
+  CloseHandle(hEvent);
+}
+
+void test_stdin() {
+  HookFeatures features = HookFeatureRedirectStdio |
+                          HookFeatureStreamingOutput | HookFeatureUnload |
+                          HookFeatureCpp;
+  char stdin_[] = "mystdin\r\n\"test123\"\r\nÄãºÃ\r\n";
+  char commandLine[] = "dummy.exe";
+  size_t peImageSize = 0;
+  void *peImage = readfile("helloworld_stdin_c." archstr ".exe", &peImageSize);
+  HANDLE hEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
+  void *imageBase = NULL;
+  HookResult result = HookResultSuccess;
+  if (peImage) {
+    for (size_t i = 0; i < loopcount; i++) {
+      result = InlineExecutePE(features, stdin_, sizeof(stdin_) - 1, peImage,
                                (int)peImageSize, commandLine,
                                sizeof(commandLine), 0, hEvent, &imageBase);
       if (result != HookResultSuccess)
@@ -292,4 +321,4 @@ void test_mimikatz() {
   CloseHandle(hEvent);
 }
 
-int main() { test_fscan(); }
+int main() { test_stdin(); }

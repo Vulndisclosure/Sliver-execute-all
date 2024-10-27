@@ -550,12 +550,9 @@ HookResult HookControlCreateImpl(HookContext *ctx, void *stdin_, int stdinSize,
 
   // Create pipe servers
   if (HasFeatures(HookFeatureRedirectStdio)) {
-    if (!stdin_ || stdinSize < 0)
-      return HookResultErrorInvalidArgument;
-    if (!CreateWritePipeServer(&StdinPipe, stdin_, stdinSize,
-                               AddressOf(WritePipeServerProc)) ||
-        !CreateReadPipeServer(&StdoutPipe, AddressOf(ReadPipeServerProc)) ||
-        !CreateReadPipeServer(&StderrPipe, AddressOf(ReadPipeServerProc)))
+    if (!CreateWritePipeServer(&StdinPipe, stdin_, stdinSize) ||
+        !CreateReadPipeServer(&StdoutPipe) ||
+        !CreateReadPipeServer(&StderrPipe))
       return HookResultErrorCreatePipeServers;
   }
 
@@ -750,6 +747,7 @@ HookResult HookControlEntry(HookControl id, va_list args) {
 #undef Output
 #undef ExitThread
 #undef VirtualFree
+#undef SetEvent
 #define _static
 #include "globalshareddata.h"
 
@@ -776,6 +774,7 @@ DWORD WINAPI HookControlSelfUnloadProc(LPVOID lpThreadParameter) {
   PVOID hookBase = ctx->HookBase;
   decltype(ExitThread) *ExitThread = (decltype(ExitThread))ctx->_ExitThread;
   decltype(VirtualFree) *VirtualFree = (decltype(VirtualFree))ctx->_VirtualFree;
+  decltype(SetEvent) *SetEvent = (decltype(SetEvent))ctx->_SetEvent;
 
   // Do HookControl
   HookControlStopImpl(ctx);
@@ -794,14 +793,12 @@ DWORD WINAPI HookControlSelfUnloadProc(LPVOID lpThreadParameter) {
   }
   VirtualFree(imageBase, 0, MEM_RELEASE);
   TRACEF("The entire PE image was unloaded.");
-  if (hCompletionEvent) {
-    SetEvent(hCompletionEvent);
-    TRACEF("Completion event of PE image %p was set.", imageBase);
-  }
 
   // Unload hook
-  free(ctx);
+  SpinLock(peImage->HookContextLock, free(ctx));
   setctx(NULL);
+  if (hCompletionEvent)
+    SetEvent(hCompletionEvent);
 #ifndef HOOKS_DLL
   void __fastcall VirtualFreeAndExitThread(void *, void *, void *);
   VirtualFreeAndExitThread(hookBase, (void *)VirtualFree, (void *)ExitThread);
