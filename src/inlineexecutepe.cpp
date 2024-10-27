@@ -33,6 +33,55 @@ WINBASEAPI NTSTATUS NTAPI NtFlushInstructionCache(HANDLE ProcessHandle,
 #endif
 #endif
 
+BOOL CheckPEImage(void *peImage, int peImageSize) {
+  PBYTE p = (PBYTE)peImage;
+  PIMAGE_DOS_HEADER dos = NULL;
+  PIMAGE_NT_HEADERS nt = NULL;
+
+  // Check if the PE image is empty
+  if (!peImage || !peImageSize)
+    goto empty;
+
+  // Check the DOS header
+  if ((UINT)peImageSize < sizeof(IMAGE_DOS_HEADER))
+    goto tooSmall;
+  dos = (PIMAGE_DOS_HEADER)p;
+  if (dos->e_magic != IMAGE_DOS_SIGNATURE)
+    goto invalidMagic;
+
+  // Check the NT header
+  nt = (PIMAGE_NT_HEADERS)(p + dos->e_lfanew);
+  if ((UINT)peImageSize < dos->e_lfanew + sizeof(IMAGE_NT_HEADERS))
+    goto tooSmall;
+  if (nt->Signature != IMAGE_NT_SIGNATURE)
+    goto invalidMagic;
+  if (nt->FileHeader.Machine !=
+      (sizeof(PVOID) == 4 ? IMAGE_FILE_MACHINE_I386 : IMAGE_FILE_MACHINE_AMD64))
+    goto invalidMagic;
+
+  // Check the optional header
+  if (nt->OptionalHeader.Magic != IMAGE_NT_OPTIONAL_HDR_MAGIC)
+    goto invalidMagic;
+  if (nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR]
+          .VirtualAddress)
+    goto dotnet;
+
+  return TRUE;
+
+empty:
+  PRINTF_ERR("The PE image is empty.");
+  return FALSE;
+tooSmall:
+  PRINTF_ERR("The size of the PE image is too small: %d", peImageSize);
+  return FALSE;
+invalidMagic:
+  PRINTF_ERR("Invalid PE image magic.");
+  return FALSE;
+dotnet:
+  PRINTF_ERR("Loading .NET PE image is not supported.");
+  return FALSE;
+}
+
 // TODO: Add proxy dll loading https://github.com/kleiton0x00/Proxy-DLL-Loads
 HMODULE GetOrLoadDll(LPCSTR dllName) {
   HMODULE handle = GetModuleHandleA(dllName);
@@ -134,23 +183,19 @@ HookResult InlineExecutePE(HookFeatures features, void *stdin_, int stdinSize,
   int index = 0;
   LoadedPEImage *loadedPEImage = NULL;
 
-  // Check the architecture of the PE image
-  if (((PIMAGE_NT_HEADERS)((PBYTE)peImage +
-                           ((PIMAGE_DOS_HEADER)peImage)->e_lfanew))
-          ->FileHeader.Machine != (sizeof(PVOID) == 4
-                                       ? IMAGE_FILE_MACHINE_I386
-                                       : IMAGE_FILE_MACHINE_AMD64)) {
-    PRINTF_ERR("The architecture of the PE image to be loaded does not match "
-               "the current process.");
-    result = HookResultErrorInvalidArgument;
-    goto err;
-  }
-
   /*
-   * 1. Prepare hook
+   * 1. Validate the PE image
    */
 
-  TRACEF("1. Prepare hook");
+  TRACEF("1. Validate the PE image");
+  if (!CheckPEImage(peImage, peImageSize))
+    goto err;
+
+  /*
+   * 2. Prepare hook
+   */
+
+  TRACEF("2. Prepare hook");
 
   hookCtx = (HookContext *)malloc(sizeof(HookContext));
   if (!hookCtx) {
@@ -194,10 +239,10 @@ HookResult InlineExecutePE(HookFeatures features, void *stdin_, int stdinSize,
   }
 
   /*
-   * 2. Initialize hook
+   * 3. Initialize hook
    */
 
-  TRACEF("2. Initialize hook");
+  TRACEF("3. Initialize hook");
 
   outputType =
       (features & HookFeatureCpp) ? CALLBACK_OUTPUT : CALLBACK_OUTPUT_UTF8;
@@ -259,10 +304,10 @@ HookResult InlineExecutePE(HookFeatures features, void *stdin_, int stdinSize,
   }
 
   /*
-   * 3. Load PE image from memory
+   * 4. Load PE image from memory
    */
 
-  TRACEF("3. Load PE image from memory");
+  TRACEF("4. Load PE image from memory");
 
   imageSize = ((PIMAGE_NT_HEADERS)((PBYTE)peImage +
                                    ((PIMAGE_DOS_HEADER)peImage)->e_lfanew))
@@ -313,10 +358,10 @@ HookResult InlineExecutePE(HookFeatures features, void *stdin_, int stdinSize,
          index);
 
   /*
-   * 4. Call exe entrypoint
+   * 5. Call exe entrypoint
    */
 
-  TRACEF("4. Call exe entrypoint");
+  TRACEF("5. Call exe entrypoint");
 
   result = hookControlEntry(HookControlStart, entryPoint);
   switch (result) {

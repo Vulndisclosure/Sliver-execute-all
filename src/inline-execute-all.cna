@@ -8,6 +8,13 @@ if ($use_debug_bof) {
     $debug_bof_suffix = '';
 }
 
+alias enable-debug-inline-execute-all {
+    $trace_enabled = true;
+    $use_debug_bof = true;
+    $debug_bof_suffix = 'd';
+    blog($1, '[enable-debug-inline-execute-all] Debug enabled. Use DebugView/x64dbg to view the BOF trace.');
+}
+
 $HookFeatureRedirectStdio = 0x01;
 $HookFeatureStreamingOutput = 0x02;
 $HookFeatureCommandLine = 0x04;
@@ -225,6 +232,10 @@ sub inline_execute_pe {
     trace('[inline_execute_pe] Beacon architecture: ' . $barch);
 
     $exe = read_file($exepath);
+    if (strlen($exe) == 0) {
+        berror($bid, 'The PE file does not exist or is empty: ' . $exepath);
+        return;
+    }
     if ($use_job) {
         $jobver = get_job_version();
     } else {
