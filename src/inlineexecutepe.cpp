@@ -206,7 +206,7 @@ HookResult InlineExecutePE(HookFeatures features, void *stdin_, int stdinSize,
                      &hJobWritePipe)) {
       hookCtx->JobOutputWriteHandle = hJobWritePipe;
       hookCtx->JobOutputLock = 0;
-      PRINTF("Job %d was added. Never use 'jobkill' for this PE image!", jobId);
+      TRACEF("Job %d was added. Never use 'jobkill' for this PE image!", jobId);
     } else
       PRINTF_ERR("Failed to add job. Fall back to normal async log. Use "
                  "'inline-log-pe' to fetch logs manually.");
