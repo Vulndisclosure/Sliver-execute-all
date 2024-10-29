@@ -102,13 +102,11 @@ extern int __cdecl vsprintf_s_proto(char* const _Buffer, size_t const _BufferCou
 #define NtCurrentThreadId() (((PHANDLE)NtCurrentTeb())[9])
 #define NtLastError() (*(PDWORD)((PSIZE_T)NtCurrentTeb() + 13))
 
-#define SpinLock(lock, code)                                                   \
-  do {                                                                         \
-    while (InterlockedExchange(&(lock), 1) == 1) {                             \
-      Sleep(1);                                                                \
-    }                                                                          \
-    code;                                                                      \
-    InterlockedExchange(&(lock), 0);                                           \
+#define SpinLock(lock, code)                               \
+  do {                                                     \
+    while (InterlockedExchange(&(lock), 1) == 1) Sleep(1); \
+    code;                                                  \
+    InterlockedExchange(&(lock), 0);                       \
   } while (0)
 
 /*==============================================================================
@@ -119,7 +117,7 @@ void BeaconPrintfPostMsg(int type, const char *fmt, ...);
 #define _BeaconPrint(a, b, ...) BeaconPrintfPostMsg(a, b, ##__VA_ARGS__)
 
 #define PRINTF(a, ...) _BeaconPrint(CALLBACK_OUTPUT, xorstr_(a), ##__VA_ARGS__)
-#define PRINTF_ERR(a, ...)                                                     \
+#define PRINTF_ERR(a, ...) \
   _BeaconPrint(CALLBACK_ERROR, xorstr_(a), ##__VA_ARGS__)
 
 /*==============================================================================
@@ -131,7 +129,7 @@ void BeaconPrintfPostMsg(int type, const char *fmt, ...);
 #endif
 
 #ifdef _TRACE
-#define TRACEF(a, ...)                                                         \
+#define TRACEF(a, ...) \
   _BeaconPrint(CALLBACK_OUTPUT, xorstr_("[DBG] " a), ##__VA_ARGS__)
 #else
 #define TRACEF(a, ...)

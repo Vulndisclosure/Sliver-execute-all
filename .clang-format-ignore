@@ -1,4 +1,12 @@
-beacon.h
-hooks_exe_*.h
-xorstr.hpp
-stkstr.hpp
+src/beacon.h
+tools/pe.h
+tools/poppack.h
+tools/pshpack1.h
+tools/pshpack2.h
+tools/pshpack4.h
+tools/pshpack8.h
+tools/wintypes.h
+
+src/hooks_exe_*.h
+src/xorstr.hpp
+src/stkstr.hpp

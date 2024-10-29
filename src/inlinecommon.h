@@ -1,7 +1,8 @@
 #pragma once
-#include "hookspub.h"
 #include <stdio.h>
 #include <windows.h>
+
+#include "hookspub.h"
 
 /*==============================================================================
  * Import
@@ -17,13 +18,11 @@
  * Helpers
  *============================================================================*/
 
-#define SpinLock(lock, code)                                                   \
-  do {                                                                         \
-    while (InterlockedExchange(&(lock), 1) == 1) {                             \
-      Sleep(1);                                                                \
-    }                                                                          \
-    code;                                                                      \
-    InterlockedExchange(&(lock), 0);                                           \
+#define SpinLock(lock, code)                               \
+  do {                                                     \
+    while (InterlockedExchange(&(lock), 1) == 1) Sleep(1); \
+    code;                                                  \
+    InterlockedExchange(&(lock), 0);                       \
   } while (0)
 
 /*==============================================================================
@@ -43,12 +42,10 @@ void BeaconPrintfDebug(int type, const char *fmt, ...) {
   va_start(args, fmt);
   strCb = _vscprintf(fmt, args);
   va_end(args);
-  if (strCb < 0)
-    goto err;
+  if (strCb < 0) goto err;
   strCb += 1;
   str = (char *)malloc(strCb);
-  if (!str)
-    goto err;
+  if (!str) goto err;
   va_start(args, fmt);
   vsprintf_s(str, strCb, fmt, args);
   va_end(args);
@@ -56,27 +53,21 @@ void BeaconPrintfDebug(int type, const char *fmt, ...) {
   if (type == CALLBACK_OUTPUT_UTF8) {
     // Convert UTF-8 to Unicode first
     wstrCch = MultiByteToWideChar(CP_UTF8, 0, str, strCb, NULL, 0);
-    if (!wstrCch)
-      goto err;
+    if (!wstrCch) goto err;
     wstr = (wchar_t *)malloc(wstrCch * sizeof(wchar_t));
-    if (!wstr)
-      goto err;
+    if (!wstr) goto err;
     wstrCch = MultiByteToWideChar(CP_UTF8, 0, str, strCb, wstr, wstrCch);
-    if (!wstrCch)
-      goto err;
+    if (!wstrCch) goto err;
 
     // Then convert Unicode to Ansi back
     strCb = WideCharToMultiByte(CP_ACP, 0, wstr, wstrCch, NULL, 0, NULL, NULL);
-    if (!strCb)
-      goto err;
+    if (!strCb) goto err;
     free(str);
     str = (char *)malloc(strCb);
-    if (!str)
-      goto err;
+    if (!str) goto err;
     strCb =
         WideCharToMultiByte(CP_ACP, 0, wstr, wstrCch, str, strCb, NULL, NULL);
-    if (!strCb)
-      goto err;
+    if (!strCb) goto err;
 
     // Set type to CALLBACK_OUTPUT
     type = CALLBACK_OUTPUT;
@@ -91,10 +82,8 @@ void BeaconPrintfDebug(int type, const char *fmt, ...) {
 err:
   __debugbreak();
 out:
-  if (str)
-    free(str);
-  if (wstr)
-    free(wstr);
+  if (str) free(str);
+  if (wstr) free(wstr);
 }
 #define _BeaconPrint(a, b, ...) BeaconPrintfDebug(a, b, ##__VA_ARGS__)
 #else
@@ -102,7 +91,7 @@ out:
 #endif
 
 #define PRINTF(a, ...) _BeaconPrint(CALLBACK_OUTPUT, xorstr_(a), ##__VA_ARGS__)
-#define PRINTF_ERR(a, ...)                                                     \
+#define PRINTF_ERR(a, ...) \
   _BeaconPrint(CALLBACK_ERROR, xorstr_(a), ##__VA_ARGS__)
 
 /*==============================================================================
@@ -114,7 +103,7 @@ out:
 #endif
 
 #ifdef _TRACE
-#define TRACEF(a, ...)                                                         \
+#define TRACEF(a, ...) \
   _BeaconPrint(CALLBACK_OUTPUT, xorstr_("[DBG] " a), ##__VA_ARGS__)
 #else
 #define TRACEF(a, ...)

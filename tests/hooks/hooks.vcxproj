@@ -150,20 +150,20 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\src\hooks.cpp" />
-    <ClCompile Include="..\..\src\pipeserver.c">
+    <ClCompile Include="..\..\src\hooks.cc" />
+    <ClCompile Include="..\..\src\pipeserver.cc">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="..\..\src\simplelist1.c">
+    <ClCompile Include="..\..\src\simplelist1.cc">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="..\..\src\simplelist2.c">
+    <ClCompile Include="..\..\src\simplelist2.cc">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
@@ -173,12 +173,12 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\globalshareddata.h" />
-    <ClInclude Include="..\..\src\hooks.hpp" />
+    <ClInclude Include="..\..\src\hooks.h" />
     <ClInclude Include="..\..\src\hookspub.h" />
     <ClInclude Include="..\..\src\pipeserver.h" />
     <ClInclude Include="..\..\src\simplelist.h" />
-    <ClInclude Include="..\..\src\stkstr.hpp" />
-    <ClInclude Include="..\..\src\xorstr.hpp" />
+    <ClInclude Include="..\..\src\stkstr.h" />
+    <ClInclude Include="..\..\src\xorstr.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\src\hooks.x64.asm">

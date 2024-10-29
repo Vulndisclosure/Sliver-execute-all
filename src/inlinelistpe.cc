@@ -5,10 +5,13 @@
 #endif
 
 extern "C" {
-#include "inlinecommon.hpp"
+// clang-format off
+#include "inlinecommon.h"
+// clang-format on
+
 #include <string.h>
 
-#include "globalshareddata.c"
+#include "globalshareddata.cc"
 
 void InlineListPE() {
   TRACEF("Begin list loaded PE images.");
@@ -17,8 +20,9 @@ void InlineListPE() {
   GlobalSharedData *data = GetGlobalSharedData();
   for (int i = 0; i < LoadedPEImageMax; i++) {
     LoadedPEImage *peImage = &data->PEImages[i];
-    if (!peImage->ImageBase)
+    if (!peImage->ImageBase) {
       continue;
+    }
 
     // Copy hook context
     BOOL hasCtx = FALSE;
@@ -29,33 +33,32 @@ void InlineListPE() {
       if (ctx) {
         hasCtx = TRUE;
         features = ctx->Features;
-        if (ctx->CommandLineA)
-          commandLineA = _strdup(ctx->CommandLineA);
+        if (ctx->CommandLineA) commandLineA = _strdup(ctx->CommandLineA);
       }
     });
 
     // Count the number of logs
     int logs = 0;
     SpinLock(peImage->Output->LogLock, {
-      SimpleListForEach(&peImage->Output->Logs, LogEntry, log, {
-        if (log->Text)
-          logs++;
-      });
+      SimpleListForEach(&peImage->Output->Logs, LogEntry, log,
+                        if (log->Text) logs++;);
     });
 
     // Print the information
-    if (hasCtx)
-      PRINTF("%d: ImageBase: %p, Features: %x, Available logs: %d, IsRunning: "
-             "%d, CommandLine: %s, JobId: %d",
-             i, peImage->ImageBase, features, logs, peImage->IsRunning,
-             commandLineA, peImage->JobId);
-    else
-      PRINTF("%d: ImageBase: %p (unloaded), Available logs: %d, IsRunning: %d, "
-             "JobId: %d",
-             i, peImage->ImageBase, logs, peImage->IsRunning, peImage->JobId);
+    if (hasCtx) {
+      PRINTF(
+          "%d: ImageBase: %p, Features: %x, Available logs: %d, IsRunning: %d, "
+          "CommandLine: %s, JobId: %d",
+          i, peImage->ImageBase, features, logs, peImage->IsRunning,
+          commandLineA, peImage->JobId);
+    } else {
+      PRINTF(
+          "%d: ImageBase: %p (unloaded), Available logs: %d, IsRunning: %d, "
+          "JobId: %d",
+          i, peImage->ImageBase, logs, peImage->IsRunning, peImage->JobId);
+    }
 
-    if (commandLineA)
-      free(commandLineA);
+    if (commandLineA) free(commandLineA);
   }
 
   TRACEF("End list loaded PE images.");

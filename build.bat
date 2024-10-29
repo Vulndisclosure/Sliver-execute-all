@@ -11,12 +11,12 @@ call :SETUP_ENV
 
 call :SET_ENV MSVC_X86
 echo __HookControlEntry > order.txt
-cl src\hooks.cpp src\hooks.x86.obj %COMMON_FLAGS% /Fe"bin\hooks.x86.exe" %HOOKS_LINK_FLAGS%
-cl src\hooks.cpp src\hooks.x86.obj %COMMON_FLAGS% /D _DEBUG /Fe"bin\hooks.x86d.exe" %HOOKS_LINK_FLAGS%
+cl src\hooks.cc src\hooks.x86.obj %COMMON_FLAGS% /Fe"bin\hooks.x86.exe" %HOOKS_LINK_FLAGS%
+cl src\hooks.cc src\hooks.x86.obj %COMMON_FLAGS% /D _DEBUG /Fe"bin\hooks.x86d.exe" %HOOKS_LINK_FLAGS%
 
 call :SET_ENV MSVC_X64
-cl src\hooks.cpp src\hooks.x64.obj %COMMON_FLAGS% /Fe"bin\hooks.x64.exe" %HOOKS_LINK_FLAGS%
-cl src\hooks.cpp src\hooks.x64.obj %COMMON_FLAGS% /D _DEBUG /Fe"bin\hooks.x64d.exe" %HOOKS_LINK_FLAGS%
+cl src\hooks.cc src\hooks.x64.obj %COMMON_FLAGS% /Fe"bin\hooks.x64.exe" %HOOKS_LINK_FLAGS%
+cl src\hooks.cc src\hooks.x64.obj %COMMON_FLAGS% /D _DEBUG /Fe"bin\hooks.x64d.exe" %HOOKS_LINK_FLAGS%
 del order.txt
 
 cl /nologo tools\exe2h.c /Fe"tools\exe2h.exe"
@@ -25,20 +25,20 @@ move hooks_*_exe.h src
 del tools\exe2h.exe exe2h.obj bin\hooks.*.exe hooks.obj
 
 call :SET_ENV MSVC_X86
-cl /c src\inlineexecutepe.cpp %BOF_FLAGS% /Fo"bin\inlineexecutepe.x86.o"
-cl /c src\inlineexecutepe.cpp %BOF_FLAGS% /D _DEBUG /Fo"bin\inlineexecutepe.x86d.o"
-cl /c src\inlinelogpe.cpp %BOF_FLAGS% /Fo"bin\inlinelogpe.x86.o"
-cl /c src\inlinelogpe.cpp %BOF_FLAGS% /D _DEBUG /Fo"bin\inlinelogpe.x86d.o"
-cl /c src\inlinelistpe.cpp %BOF_FLAGS% /Fo"bin\inlinelistpe.x86.o"
-cl /c src\inlinelistpe.cpp %BOF_FLAGS% /D _DEBUG /Fo"bin\inlinelistpe.x86d.o"
+cl /c src\inlineexecutepe.cc %BOF_FLAGS% /Fo"bin\inlineexecutepe.x86.o"
+cl /c src\inlineexecutepe.cc %BOF_FLAGS% /D _DEBUG /Fo"bin\inlineexecutepe.x86d.o"
+cl /c src\inlinelogpe.cc %BOF_FLAGS% /Fo"bin\inlinelogpe.x86.o"
+cl /c src\inlinelogpe.cc %BOF_FLAGS% /D _DEBUG /Fo"bin\inlinelogpe.x86d.o"
+cl /c src\inlinelistpe.cc %BOF_FLAGS% /Fo"bin\inlinelistpe.x86.o"
+cl /c src\inlinelistpe.cc %BOF_FLAGS% /D _DEBUG /Fo"bin\inlinelistpe.x86d.o"
 
 call :SET_ENV MSVC_X64
-cl /c src\inlineexecutepe.cpp %BOF_FLAGS% /Fo"bin\inlineexecutepe.x64.o"
-cl /c src\inlineexecutepe.cpp %BOF_FLAGS% /D _DEBUG /Fo"bin\inlineexecutepe.x64d.o"
-cl /c src\inlinelogpe.cpp %BOF_FLAGS% /Fo"bin\inlinelogpe.x64.o"
-cl /c src\inlinelogpe.cpp %BOF_FLAGS% /D _DEBUG /Fo"bin\inlinelogpe.x64d.o"
-cl /c src\inlinelistpe.cpp %BOF_FLAGS% /Fo"bin\inlinelistpe.x64.o"
-cl /c src\inlinelistpe.cpp %BOF_FLAGS% /D _DEBUG /Fo"bin\inlinelistpe.x64d.o"
+cl /c src\inlineexecutepe.cc %BOF_FLAGS% /Fo"bin\inlineexecutepe.x64.o"
+cl /c src\inlineexecutepe.cc %BOF_FLAGS% /D _DEBUG /Fo"bin\inlineexecutepe.x64d.o"
+cl /c src\inlinelogpe.cc %BOF_FLAGS% /Fo"bin\inlinelogpe.x64.o"
+cl /c src\inlinelogpe.cc %BOF_FLAGS% /D _DEBUG /Fo"bin\inlinelogpe.x64d.o"
+cl /c src\inlinelistpe.cc %BOF_FLAGS% /Fo"bin\inlinelistpe.x64.o"
+cl /c src\inlinelistpe.cc %BOF_FLAGS% /D _DEBUG /Fo"bin\inlinelistpe.x64d.o"
 
 cl /nologo /O2 /std:c++20 /EHsc tools\fixbof.cc tools\obj.cc /Fe"tools\fixbof.exe"
 tools\fixbof.exe tools\link ^

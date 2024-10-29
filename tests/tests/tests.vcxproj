@@ -151,16 +151,22 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\src\globalshareddata.c">
+    <ClCompile Include="..\..\src\globalshareddata.cc">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="..\..\src\inlineexecutepe.cpp" />
-    <ClCompile Include="..\..\src\inlinelistpe.cpp" />
-    <ClCompile Include="..\..\src\inlinelogpe.cpp" />
-    <ClCompile Include="..\..\src\jobs.c">
+    <ClCompile Include="..\..\src\inlineexecutepe.cc" />
+    <ClCompile Include="..\..\src\inlinelistpe.cc" />
+    <ClCompile Include="..\..\src\inlinelogpe.cc" />
+    <ClCompile Include="..\..\src\jobs1.cc">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\src\jobs2.cc">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
@@ -172,7 +178,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="..\..\src\seh.c">
+    <ClCompile Include="..\..\src\seh.cc">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
@@ -185,14 +191,14 @@
     <ClInclude Include="..\..\src\beacon_compatibility.h" />
     <ClInclude Include="..\..\src\globalshareddata.h" />
     <ClInclude Include="..\..\src\hookspub.h" />
-    <ClInclude Include="..\..\src\inlinecommon.hpp" />
-    <ClInclude Include="..\..\src\inlineexecutepe.hpp" />
-    <ClInclude Include="..\..\src\inlinelistpe.hpp" />
-    <ClInclude Include="..\..\src\inlinelogpe.hpp" />
+    <ClInclude Include="..\..\src\inlinecommon.h" />
+    <ClInclude Include="..\..\src\inlineexecutepe.h" />
+    <ClInclude Include="..\..\src\inlinelistpe.h" />
+    <ClInclude Include="..\..\src\inlinelogpe.h" />
     <ClInclude Include="..\..\src\jobs.h" />
     <ClInclude Include="..\..\src\pipeserver.h" />
     <ClInclude Include="..\..\src\simplelist.h" />
-    <ClInclude Include="..\..\src\xorstr.hpp" />
+    <ClInclude Include="..\..\src\xorstr.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\src\seh.x86.asm">

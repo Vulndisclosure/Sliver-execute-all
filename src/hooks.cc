@@ -30,13 +30,15 @@ constexpr unsigned __hash(const CharT (&s)[N]) {
   return h;
 }
 
-template <unsigned v> constexpr unsigned __force_compile_time_result() {
+template <unsigned v>
+constexpr unsigned __force_compile_time_result() {
   return v;
 }
 
 #define HashCT(s) __force_compile_time_result<__hash(s)>()
 
-template <class CharT> _forceinline unsigned HashRT(const CharT *s) {
+template <class CharT>
+_forceinline unsigned HashRT(const CharT *s) {
   unsigned h = 0;
   do {
     h = (h >> __shift) | (h << (32 - __shift));
@@ -71,12 +73,12 @@ __HookControlEntry(HookControl id, ...) {
  * Hook Foundation
  *============================================================================*/
 
-#include "hooks.hpp"
+#include "hooks.h"
 
 // clang-format off
-#include "simplelist1.c"
-#include "simplelist2.c"
-#include "pipeserver.c"
+#include "simplelist1.cc"
+#include "simplelist2.cc"
+#include "pipeserver.cc"
 
 #define HasFeatures(x)        ((getctx()->Features & (x)) == (x))
 
@@ -126,12 +128,10 @@ void BeaconPrintfPostMsg(int type, const char *fmt, ...) {
   va_start(args, fmt);
   strCb = _vscprintf(fmt, args);
   va_end(args);
-  if (strCb < 0)
-    goto err;
+  if (strCb < 0) goto err;
   strCb += 1;
   str = (char *)malloc(strCb);
-  if (!str)
-    goto err;
+  if (!str) goto err;
   va_start(args, fmt);
   vsprintf_s(str, strCb, fmt, args);
   va_end(args);
@@ -139,27 +139,21 @@ void BeaconPrintfPostMsg(int type, const char *fmt, ...) {
   if (type == CALLBACK_OUTPUT_UTF8) {
     // Convert UTF-8 to Unicode first
     wstrCch = MultiByteToWideChar(CP_UTF8, 0, str, strCb, NULL, 0);
-    if (!wstrCch)
-      goto err;
+    if (!wstrCch) goto err;
     wstr = (wchar_t *)malloc(wstrCch * sizeof(wchar_t));
-    if (!wstr)
-      goto err;
+    if (!wstr) goto err;
     wstrCch = MultiByteToWideChar(CP_UTF8, 0, str, strCb, wstr, wstrCch);
-    if (!wstrCch)
-      goto err;
+    if (!wstrCch) goto err;
 
     // Then convert Unicode to Ansi back
     strCb = WideCharToMultiByte(CP_ACP, 0, wstr, wstrCch, NULL, 0, NULL, NULL);
-    if (!strCb)
-      goto err;
+    if (!strCb) goto err;
     free(str);
     str = (char *)malloc(strCb);
-    if (!str)
-      goto err;
+    if (!str) goto err;
     strCb =
         WideCharToMultiByte(CP_ACP, 0, wstr, wstrCch, str, strCb, NULL, NULL);
-    if (!strCb)
-      goto err;
+    if (!strCb) goto err;
 
     // Set type to CALLBACK_OUTPUT
     type = CALLBACK_OUTPUT;
@@ -173,12 +167,11 @@ void BeaconPrintfPostMsg(int type, const char *fmt, ...) {
     SpinLock(JobOutputLock,
              result = WriteFile(JobOutputWriteHandle, str, strCb, NULL, NULL));
     str[strCb - 1] = '\0';
-    if (!result)
-      goto err;
+    if (!result) goto err;
   } else {
     log = {type, strCb, str};
     SpinLock(Output->LogLock, SimpleListAdd(&Output->Logs, LogEntry, log));
-    str = NULL; // Don't free
+    str = NULL;  // Don't free
   }
   goto out;
 
@@ -187,10 +180,8 @@ err:
   __debugbreak();
 #endif
 out:
-  if (str)
-    free(str);
-  if (wstr)
-    free(wstr);
+  if (str) free(str);
+  if (wstr) free(wstr);
 }
 
 /*==============================================================================
@@ -203,8 +194,9 @@ VOID WINAPI MyExitProcess(_In_ UINT uExitCode) {
     SpinLock(ThreadListLock, {
       SimpleListForEach(&ThreadList, DWORD, entry, {
         DWORD id = *entry;
-        if (id == (DWORD)(SIZE_T)NtCurrentThreadId())
+        if (id == (DWORD)(SIZE_T)NtCurrentThreadId()) {
           continue;
+        }
         HANDLE hThread = OpenThread(THREAD_ALL_ACCESS, FALSE, id);
         if (hThread) {
           TerminateThread(hThread, 0);
@@ -227,8 +219,9 @@ VOID WINAPI MyExitProcess(_In_ UINT uExitCode) {
     if (hSelfUnloadThread) {
       CloseHandle(hSelfUnloadThread);
       TRACEF("A new thread was created to self-unload.");
-    } else
+    } else {
       PRINTF_ERR("Can't create a new thread to self-unload.");
+    }
   }
   PRINTF("Process exited with code %d.", uExitCode);
   ExitThread(uExitCode);
@@ -248,14 +241,14 @@ LPWSTR WINAPI MyGetCommandLineW() {
 HANDLE WINAPI MyGetStdHandle(_In_ DWORD nStdHandle) {
   TRACEF("GetStdHandle was called. (nStdHandle: %d)", (UINT)nStdHandle);
   switch (nStdHandle) {
-  case STD_INPUT_HANDLE:
-    return StdinPipe.ReadHandle;
-  case STD_OUTPUT_HANDLE:
-    return StdoutPipe.WriteHandle;
-  case STD_ERROR_HANDLE:
-    return StderrPipe.WriteHandle;
-  default:
-    return GetStdHandle(nStdHandle);
+    case STD_INPUT_HANDLE:
+      return StdinPipe.ReadHandle;
+    case STD_OUTPUT_HANDLE:
+      return StdoutPipe.WriteHandle;
+    case STD_ERROR_HANDLE:
+      return StderrPipe.WriteHandle;
+    default:
+      return GetStdHandle(nStdHandle);
   }
 }
 
@@ -263,15 +256,18 @@ BOOL WINAPI MyProcess32NextW(HANDLE hSnapshot, LPPROCESSENTRY32W lppe) {
   // CreateToolhelp32Snapshot will be called twice in
   // https://github.com/spf13/cobra/blob/main/command_win.go
   BOOL b = Process32NextW(hSnapshot, lppe);
-  if (!b)
+  if (!b) {
     return FALSE;
+  }
   // TRACEF("Process32NextW was called. (th32ProcessID: %d, szExeFile: %ws)",
   //        lppe->th32ProcessID, lppe->szExeFile);
-  if (lppe->th32ProcessID == (DWORD)(SIZE_T)NtCurrentProcessId())
+  if (lppe->th32ProcessID == (DWORD)(SIZE_T)NtCurrentProcessId()) {
     ParentProcessId = lppe->th32ParentProcessID;
+  }
   if (lppe->th32ProcessID == ParentProcessId &&
-      HashRT(lppe->szExeFile) == HashCT(L"explorer.exe"))
+      HashRT(lppe->szExeFile) == HashCT(L"explorer.exe")) {
     lppe->szExeFile[0] = '_';
+  }
   return b;
 }
 
@@ -300,10 +296,12 @@ BOOL WINAPI MyWriteFile(_In_ HANDLE hFile,
     } else {
       int type =
           HasFeatures(HookFeatureCpp) ? CALLBACK_OUTPUT : CALLBACK_OUTPUT_UTF8;
-      if (len >= 1 && s[len - 1] == '\n')
+      if (len >= 1 && s[len - 1] == '\n') {
         len -= 1;
-      if (len >= 1 && s[len - 1] == '\r')
+      }
+      if (len >= 1 && s[len - 1] == '\r') {
         len -= 1;
+      }
       _BeaconPrint(type, xorstr_("%.*s"), len, s);
     }
   }
@@ -324,8 +322,9 @@ HANDLE WINAPI MyCreateThread(_In_opt_ LPSECURITY_ATTRIBUTES lpThreadAttributes,
   // 4. Memory was freed and new thread crashes
   HANDLE hThread = CreateThread(lpThreadAttributes, dwStackSize, lpStartAddress,
                                 lpParameter, dwCreationFlags, lpThreadId);
-  if (!hThread)
+  if (!hThread) {
     return NULL;
+  }
   DWORD threadId = GetThreadId(hThread);
   SpinLock(ThreadListLock, SimpleListAdd(&ThreadList, DWORD, threadId));
   TRACEF("Thread %d was created at %p with parameter %p.", (UINT)threadId,
@@ -338,8 +337,9 @@ uintptr_t __cdecl Mybeginthread(_In_ void *_StartAddress,
                                 _In_ unsigned _StackSize,
                                 _In_opt_ void *_ArgList) {
   HANDLE hThread = (HANDLE)_beginthread(_StartAddress, _StackSize, _ArgList);
-  if (hThread == NULL || hThread == INVALID_HANDLE_VALUE)
+  if (hThread == NULL || hThread == INVALID_HANDLE_VALUE) {
     return (uintptr_t)hThread;
+  }
   DWORD threadId = GetThreadId(hThread);
   SpinLock(ThreadListLock, SimpleListAdd(&ThreadList, DWORD, threadId));
   TRACEF("Thread %d was created at %p with parameter %p. (cgo)", (UINT)threadId,
@@ -350,9 +350,10 @@ uintptr_t __cdecl Mybeginthread(_In_ void *_StartAddress,
 _Ret_maybenull_ PVOID WINAPI MyAddVectoredExceptionHandler(
     _In_ ULONG First, _In_ PVECTORED_EXCEPTION_HANDLER Handler) {
   PVOID handle = AddVectoredExceptionHandler(First, Handler);
-  TRACEF("AddVectoredExceptionHandler was called. (First: %d, Handler: %p, "
-         "handle: %p)",
-         (UINT)First, Handler, handle);
+  TRACEF(
+      "AddVectoredExceptionHandler was called. (First: %d, Handler: %p, "
+      "handle: %p)",
+      (UINT)First, Handler, handle);
   ExceptionHandlerEntry entry = {EHTYPE_VEH, handle};
   SimpleListAdd(&ExceptionHandlerList, ExceptionHandlerEntry, entry);
   return handle;
@@ -361,9 +362,10 @@ _Ret_maybenull_ PVOID WINAPI MyAddVectoredExceptionHandler(
 _Ret_maybenull_ PVOID WINAPI MyAddVectoredContinueHandler(
     _In_ ULONG First, _In_ PVECTORED_EXCEPTION_HANDLER Handler) {
   PVOID handle = AddVectoredContinueHandler(First, Handler);
-  TRACEF("AddVectoredContinueHandler was called. (First: %d, Handler: %p, "
-         "handle: %p)",
-         (UINT)First, Handler, handle);
+  TRACEF(
+      "AddVectoredContinueHandler was called. (First: %d, Handler: %p, "
+      "handle: %p)",
+      (UINT)First, Handler, handle);
   ExceptionHandlerEntry entry = {EHTYPE_VCH, handle};
   SimpleListAdd(&ExceptionHandlerList, ExceptionHandlerEntry, entry);
   return handle;
@@ -444,62 +446,79 @@ FARPROC WINAPI MyGetProcAddress(_In_ HMODULE hModule, _In_ LPCSTR lpProcName) {
   if (hModule == Kernel32Base) {
     // Prevent from exiting process (see
     // https://github.com/golang/go/blob/go1.23.0/src/runtime/proc.go#L296)
-    if (hash == HashCT("ExitProcess"))
+    if (hash == HashCT("ExitProcess")) {
       return (FARPROC)AddressOf(MyExitProcess);
+    }
 
     // Masquerade command-line
     if (HasFeatures(HookFeatureCommandLine)) {
-      if (hash == HashCT("GetCommandLineA"))
+      if (hash == HashCT("GetCommandLineA")) {
         return (FARPROC)AddressOf(MyGetCommandLineA);
-      if (hash == HashCT("GetCommandLineW"))
+      }
+      if (hash == HashCT("GetCommandLineW")) {
         return (FARPROC)AddressOf(MyGetCommandLineW);
+      }
     }
 
     // Redirect stdio
-    if (HasFeatures(HookFeatureRedirectStdio) && hash == HashCT("GetStdHandle"))
+    if (HasFeatures(HookFeatureRedirectStdio) &&
+        hash == HashCT("GetStdHandle")) {
       return (FARPROC)AddressOf(MyGetStdHandle);
+    }
 
     // For cobra command line parser (see
     // https://github.com/spf13/cobra/blob/main/command_win.go) (used by frp)
     if (HasFeatures(HookFeatureGoCobraFakeParentProcess) &&
-        hash == HashCT("Process32NextW"))
+        hash == HashCT("Process32NextW")) {
       return (FARPROC)AddressOf(MyProcess32NextW);
+    }
 
     // Streaming stdout/stderr
-    if (HasFeatures(HookFeatureStreamingOutput) && hash == HashCT("WriteFile"))
+    if (HasFeatures(HookFeatureStreamingOutput) &&
+        hash == HashCT("WriteFile")) {
       return (FARPROC)AddressOf(MyWriteFile);
+    }
 
     if (HasFeatures(HookFeatureUnload | HookFeatureGo)) {
       // Hook CreateThread to collect all go routines
-      if (hash == HashCT("CreateThread"))
+      if (hash == HashCT("CreateThread")) {
         return (FARPROC)AddressOf(MyCreateThread);
+      }
       // Hook VEH functions to collect VEHs (see
       // https://github.com/golang/go/blob/go1.23.0/src/runtime/signal_windows.go#L50)
-      if (hash == HashCT("AddVectoredExceptionHandler"))
+      if (hash == HashCT("AddVectoredExceptionHandler")) {
         return (FARPROC)AddressOf(MyAddVectoredExceptionHandler);
-      if (hash == HashCT("AddVectoredContinueHandler"))
+      }
+      if (hash == HashCT("AddVectoredContinueHandler")) {
         return (FARPROC)AddressOf(MyAddVectoredContinueHandler);
+      }
       // Prevent program from crashing when closing console window (see
       // https://github.com/golang/go/blob/go1.23.0/src/runtime/os_windows.go#L543)
-      if (hash == HashCT("SetConsoleCtrlHandler"))
+      if (hash == HashCT("SetConsoleCtrlHandler")) {
         return (FARPROC)AddressOf(MySetConsoleCtrlHandler);
+      }
       // Track pages allocated from VirtualAlloc
-      if (hash == HashCT("VirtualAlloc"))
+      if (hash == HashCT("VirtualAlloc")) {
         return (FARPROC)AddressOf(MyVirtualAlloc);
-      if (hash == HashCT("VirtualFree"))
+      }
+      if (hash == HashCT("VirtualFree")) {
         return (FARPROC)AddressOf(MyVirtualFree);
-      if (hash == HashCT("TlsAlloc"))
+      }
+      if (hash == HashCT("TlsAlloc")) {
         return (FARPROC)AddressOf(MyTlsAlloc);
+      }
     }
 
     // Dynamic resolution (e.g. UPX)
-    if (hash == HashCT("GetProcAddress"))
+    if (hash == HashCT("GetProcAddress")) {
       return (FARPROC)AddressOf(MyGetProcAddress);
+    }
   }
   // cgo only
   if (hash == HashCT("_beginthread") && HasFeatures(HookFeatureGo) &&
-      hModule == GetModuleHandleA(xorstr_("msvcrt.dll")))
+      hModule == GetModuleHandleA(xorstr_("msvcrt.dll"))) {
     return (FARPROC)AddressOf(Mybeginthread);
+  }
   return GetProcAddress(hModule, lpProcName);
 }
 
@@ -530,53 +549,64 @@ HookResult HookControlCreateImpl(HookContext *ctx, void *stdin_, int stdinSize,
 
   // Copy command-line Ansi and Unicode
   if (HasFeatures(HookFeatureCommandLine)) {
-    if (!commandLineA)
+    if (!commandLineA) {
       return HookResultErrorInvalidArgument;
+    }
     CommandLineA = (char *)malloc(commandLineASize);
-    if (!CommandLineA)
+    if (!CommandLineA) {
       return HookResultErrorCreateCommandLine;
+    }
     memcpy(CommandLineA, commandLineA, commandLineASize);
-    if (!commandLineW)
+    if (!commandLineW) {
       return HookResultErrorInvalidArgument;
+    }
     CommandLineW = (wchar_t *)malloc(commandLineWSize);
-    if (!CommandLineW)
+    if (!CommandLineW) {
       return HookResultErrorCreateCommandLine;
+    }
     memcpy(CommandLineW, commandLineW, commandLineWSize);
   }
 
   // Zero ParentProcessId
-  if (HasFeatures(HookFeatureGoCobraFakeParentProcess))
+  if (HasFeatures(HookFeatureGoCobraFakeParentProcess)) {
     ParentProcessId = 0;
+  }
 
   // Create pipe servers
   if (HasFeatures(HookFeatureRedirectStdio)) {
     if (!CreateWritePipeServer(&StdinPipe, stdin_, stdinSize) ||
         !CreateReadPipeServer(&StdoutPipe) ||
-        !CreateReadPipeServer(&StderrPipe))
+        !CreateReadPipeServer(&StderrPipe)) {
       return HookResultErrorCreatePipeServers;
+    }
   }
 
   // Allocate new thread list, exception handler list and memory list to support
   // unloading go
   if (HasFeatures(HookFeatureUnload | HookFeatureGo)) {
-    if (!SimpleListAlloc(&ThreadList, sizeof(DWORD) * 128))
+    if (!SimpleListAlloc(&ThreadList, sizeof(DWORD) * 128)) {
       return HookResultErrorCreateNewThreadList;
+    }
     ThreadListLock = 0;
     if (!SimpleListAlloc(&ExceptionHandlerList,
-                         sizeof(ExceptionHandlerEntry) * 8))
+                         sizeof(ExceptionHandlerEntry) * 8)) {
       return HookResultErrorCreateExceptionHandlerList;
-    if (!SimpleListAlloc(&MemoryList, sizeof(LPVOID) * 64))
+    }
+    if (!SimpleListAlloc(&MemoryList, sizeof(LPVOID) * 64)) {
       return HookResultErrorCreateMemoryList;
+    }
     MemoryListLock = 0;
-    if (!SimpleListAlloc(&TlsList, sizeof(DWORD) * 8))
+    if (!SimpleListAlloc(&TlsList, sizeof(DWORD) * 8)) {
       return HookResultErrorCreateTlsList;
+    }
     TlsListLock = 0;
   }
 
   // Get kernel32.dll image base for MyGetProcAddress
   Kernel32Base = GetModuleHandleA(xorstr_("kernel32.dll"));
-  if (!Kernel32Base)
+  if (!Kernel32Base) {
     return HookResultErrorCreateKernel32Base;
+  }
 
   // Return detours
   ctx->MyGetProcAddress = AddressOf(MyGetProcAddress);
@@ -613,8 +643,9 @@ void HookControlDeleteImpl(HookContext *ctx) {
   }
 
   // Zero ParentProcessId
-  if (HasFeatures(HookFeatureGoCobraFakeParentProcess))
+  if (HasFeatures(HookFeatureGoCobraFakeParentProcess)) {
     ParentProcessId = 0;
+  }
 
   // Free command-line buffers
   if (HasFeatures(HookFeatureCommandLine)) {
@@ -635,12 +666,14 @@ HookResult HookControlStartImpl(HookContext *ctx, void *entryPoint) {
   LPTHREAD_START_ROUTINE runExeEntry =
       (LPTHREAD_START_ROUTINE)AddressOf(RunExeEntryProc);
   HANDLE hThread;
-  if (HasFeatures(HookFeatureUnload | HookFeatureGo))
+  if (HasFeatures(HookFeatureUnload | HookFeatureGo)) {
     hThread = MyCreateThread(NULL, 0, runExeEntry, entryPoint, 0, NULL);
-  else
+  } else {
     hThread = CreateThread(NULL, 0, runExeEntry, entryPoint, 0, NULL);
-  if (!hThread)
+  }
+  if (!hThread) {
     return HookResultErrorStartNewThread;
+  }
   CloseHandle(hThread);
   return HookResultSuccess;
 }
@@ -652,10 +685,11 @@ HookResult HookControlStopImpl(HookContext *ctx) {
   if (HasFeatures(HookFeatureUnload | HookFeatureGo)) {
     SimpleListForEach(&ExceptionHandlerList, ExceptionHandlerEntry, eh, {
       PVOID result = NULL;
-      if (eh->Type == EHTYPE_VEH)
+      if (eh->Type == EHTYPE_VEH) {
         result = (PVOID)(SIZE_T)RemoveVectoredExceptionHandler(eh->Handle);
-      else if (eh->Type == EHTYPE_VCH)
+      } else if (eh->Type == EHTYPE_VCH) {
         result = (PVOID)(SIZE_T)RemoveVectoredContinueHandler(eh->Handle);
+      }
       TRACEF(
           "Exception handler was removed. (type: %d, handle: %p, result: %p)",
           eh->Type, eh->Handle, result);
@@ -674,8 +708,9 @@ HookResult HookControlStopImpl(HookContext *ctx) {
     });
     TRACEF("All tls were released.");
   }
-  if (HasFeatures(HookFeatureUnload))
+  if (HasFeatures(HookFeatureUnload)) {
     SetUnhandledExceptionFilter(NULL);
+  }
 
   return HookResultSuccess;
 }
@@ -690,8 +725,9 @@ HookResult HookControlEntry(HookControl id, va_list args) {
     int commandLineASize = va_arg(args, int);
     wchar_t *commandLineW = va_arg(args, wchar_t *);
     int commandLineWSize = va_arg(args, int);
-    if (!ctx)
+    if (!ctx) {
       return HookResultErrorInvalidArgument;
+    }
 
     // Initialize hook context
     setctx(ctx);
@@ -706,8 +742,9 @@ HookResult HookControlEntry(HookControl id, va_list args) {
     return HookResultSuccess;
   } else if (id == HookControlDelete) {
     HookContext *ctx = getctx();
-    if (!ctx)
+    if (!ctx) {
       return HookResultErrorNotYetCreated;
+    }
 
     HookControlDeleteImpl(ctx);
     setctx(NULL);
@@ -716,17 +753,20 @@ HookResult HookControlEntry(HookControl id, va_list args) {
     // Get arguments
     HookContext *ctx = getctx();
     void *entryPoint = va_arg(args, void *);
-    if (!entryPoint)
+    if (!entryPoint) {
       return HookResultErrorInvalidArgument;
-    if (!ctx)
+    }
+    if (!ctx) {
       return HookResultErrorNotYetCreated;
+    }
 
     return HookControlStartImpl(ctx, entryPoint);
   } else if (id == HookControlStop) {
     // Get arguments
     HookContext *ctx = getctx();
-    if (!ctx)
+    if (!ctx) {
       return HookResultErrorNotYetCreated;
+    }
 
     return HookControlStopImpl(ctx);
   }
@@ -757,7 +797,7 @@ DWORD WINAPI HookControlSelfUnloadProc(LPVOID lpThreadParameter) {
   CloseHandle(hLastThread);
 
   /*
-   * 5. Free hook and PE image (continuation of inlineexecutepe.cpp)
+   * 5. Free hook and PE image (continuation of inlineexecutepe.cc)
    */
 
   TRACEF("5. Free hook and PE image");
@@ -797,8 +837,9 @@ DWORD WINAPI HookControlSelfUnloadProc(LPVOID lpThreadParameter) {
   // Unload hook
   SpinLock(peImage->HookContextLock, free(ctx));
   setctx(NULL);
-  if (hCompletionEvent)
+  if (hCompletionEvent) {
     SetEvent(hCompletionEvent);
+  }
 #ifndef HOOKS_DLL
   void __fastcall VirtualFreeAndExitThread(void *, void *, void *);
   VirtualFreeAndExitThread(hookBase, (void *)VirtualFree, (void *)ExitThread);

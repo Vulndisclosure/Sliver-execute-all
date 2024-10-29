@@ -1,10 +1,11 @@
 #pragma once
-#include "pipeserver.h"
-#include "simplelist.h"
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <windows.h>
+
+#include "pipeserver.h"
+#include "simplelist.h"
 
 typedef enum {
   HookFeatureRedirectStdio = 0x01,

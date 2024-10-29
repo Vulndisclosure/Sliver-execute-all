@@ -5,11 +5,13 @@
 #endif
 
 extern "C" {
-#include "inlinecommon.hpp"
+// clang-format off
+#include "inlinecommon.h"
+// clang-format on
 
-#include "globalshareddata.c"
-#include "jobs1.c"
-#include "simplelist1.c"
+#include "globalshareddata.cc"
+#include "jobs1.cc"
+#include "simplelist1.cc"
 
 void InlineLogPE(void *imageBase) {
   TRACEF("Begin fetch log.");
@@ -27,8 +29,9 @@ void InlineLogPE(void *imageBase) {
     PRINTF("Use the last image base %p.", imageBase);
   }
   for (index = 0; index < LoadedPEImageMax; index++) {
-    if (sharedData->PEImages[index].ImageBase == imageBase)
+    if (sharedData->PEImages[index].ImageBase == imageBase) {
       break;
+    }
   }
   if (index == LoadedPEImageMax) {
     PRINTF_ERR("Can't find %p in PEImages.", imageBase);
@@ -43,8 +46,9 @@ void InlineLogPE(void *imageBase) {
 
   SpinLock(output->LogLock, {
     SimpleListForEach(&output->Logs, LogEntry, log, {
-      if (!log->Text)
+      if (!log->Text) {
         continue;
+      }
       _BeaconPrint(log->Type, xorstr_("%.*s"), log->Size, log->Text);
       free(log->Text);
       log->Text = NULL;
@@ -60,15 +64,17 @@ void InlineLogPE(void *imageBase) {
     goto out;
   }
   if (output->Stdout) {
-    if (output->Stdout->Size)
+    if (output->Stdout->Size) {
       _BeaconPrint(output->Type, xorstr_("Stdout: %.*s"), output->Stdout->Size,
                    (char *)output->Stdout->Buffer);
+    }
     SimpleListFree(output->Stdout);
   }
   if (output->Stderr) {
-    if (output->Stderr->Size)
+    if (output->Stderr->Size) {
       _BeaconPrint(output->Type, xorstr_("Stderr: %.*s"), output->Stderr->Size,
                    (char *)output->Stderr->Buffer);
+    }
     SimpleListFree(output->Stderr);
   }
   SimpleListFree(&output->Logs);

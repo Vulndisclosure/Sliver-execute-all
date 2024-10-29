@@ -2,9 +2,10 @@
 #include <Windows.h>
 #include <TlHelp32.h>
 // clang-format on
-#include "../../src/hookspub.h"
 #include <conio.h>
 #include <stdio.h>
+
+#include "../../src/hookspub.h"
 
 HookResult InlineExecutePE(HookFeatures features, void *stdin_, int stdinSize,
                            void *peImage, int peImageSize, char *commandLineA,
@@ -14,8 +15,7 @@ void InlineLogPE(void *imageBase);
 void InlineListPE();
 
 static void *readfile(const char *filename, size_t *size) {
-  if (!filename)
-    return NULL;
+  if (!filename) return NULL;
 
   FILE *file = NULL;
   size_t filesize = 0;
@@ -42,18 +42,14 @@ static void *readfile(const char *filename, size_t *size) {
     goto err;
   }
 
-  if (size)
-    *size = filesize;
+  if (size) *size = filesize;
   fclose(file);
   return data;
 
 err:
-  if (size)
-    *size = 0;
-  if (data)
-    free(data);
-  if (file)
-    fclose(file);
+  if (size) *size = 0;
+  if (data) free(data);
+  if (file) fclose(file);
   return NULL;
 }
 
@@ -63,7 +59,7 @@ err:
 #define archstr "x86"
 #endif
 #define loopcount 100
-#define statement_after_execution // Sleep(30 * 1000)
+#define statement_after_execution  // Sleep(30 * 1000)
 
 void test_c() {
   HookFeatures features = HookFeatureRedirectStdio |
@@ -81,8 +77,7 @@ void test_c() {
       result = InlineExecutePE(features, stdin_, sizeof(stdin_), peImage,
                                (int)peImageSize, commandLine,
                                sizeof(commandLine), 0, hEvent, &imageBase);
-      if (result != HookResultSuccess)
-        __debugbreak();
+      if (result != HookResultSuccess) __debugbreak();
       InlineListPE();
       WaitForSingleObject(hEvent, INFINITE);
       ResetEvent(hEvent);
@@ -111,8 +106,7 @@ void test_go() {
       result = InlineExecutePE(features, stdin_, sizeof(stdin_), peImage,
                                (int)peImageSize, commandLine,
                                sizeof(commandLine), 0, hEvent, &imageBase);
-      if (result != HookResultSuccess)
-        __debugbreak();
+      if (result != HookResultSuccess) __debugbreak();
       InlineListPE();
       WaitForSingleObject(hEvent, INFINITE);
       ResetEvent(hEvent);
@@ -139,8 +133,7 @@ void test_seh() {
       result = InlineExecutePE(features, stdin_, sizeof(stdin_), peImage,
                                (int)peImageSize, commandLine,
                                sizeof(commandLine), 0, hEvent, &imageBase);
-      if (result != HookResultSuccess)
-        __debugbreak();
+      if (result != HookResultSuccess) __debugbreak();
       InlineListPE();
       WaitForSingleObject(hEvent, INFINITE);
       ResetEvent(hEvent);
@@ -168,8 +161,7 @@ void test_stdin() {
       result = InlineExecutePE(features, stdin_, sizeof(stdin_) - 1, peImage,
                                (int)peImageSize, commandLine,
                                sizeof(commandLine), 0, hEvent, &imageBase);
-      if (result != HookResultSuccess)
-        __debugbreak();
+      if (result != HookResultSuccess) __debugbreak();
       InlineListPE();
       WaitForSingleObject(hEvent, INFINITE);
       ResetEvent(hEvent);
@@ -199,8 +191,7 @@ void test_frpc() {
     result = InlineExecutePE(features, stdin_, sizeof(stdin_), peImage,
                              (int)peImageSize, commandLine, sizeof(commandLine),
                              0, hEvent, &imageBase);
-    if (result != HookResultSuccess)
-      __debugbreak();
+    if (result != HookResultSuccess) __debugbreak();
     for (int i = 0; i < 1000; i++) {
       Sleep(5000);
       InlineLogPE(imageBase);
@@ -227,8 +218,7 @@ void test_gohttpserver() {
     result = InlineExecutePE(features, stdin_, sizeof(stdin_), peImage,
                              (int)peImageSize, commandLine, sizeof(commandLine),
                              0, hEvent, &imageBase);
-    if (result != HookResultSuccess)
-      __debugbreak();
+    if (result != HookResultSuccess) __debugbreak();
     for (int i = 0; i < 1000; i++) {
       Sleep(5000);
       InlineLogPE(imageBase);
@@ -255,8 +245,7 @@ void test_fscan() {
     result = InlineExecutePE(features, stdin_, sizeof(stdin_), peImage,
                              (int)peImageSize, commandLine, sizeof(commandLine),
                              0, hEvent, &imageBase);
-    if (result != HookResultSuccess)
-      __debugbreak();
+    if (result != HookResultSuccess) __debugbreak();
     for (int i = 0; i < 1000; i++) {
       Sleep(5000);
       InlineLogPE(imageBase);
@@ -284,8 +273,7 @@ void test_uacme() {
     result = InlineExecutePE(features, stdin_, sizeof(stdin_), peImage,
                              (int)peImageSize, commandLine, sizeof(commandLine),
                              0, hEvent, &imageBase);
-    if (result != HookResultSuccess)
-      __debugbreak();
+    if (result != HookResultSuccess) __debugbreak();
     WaitForSingleObject(hEvent, INFINITE);
     InlineLogPE(imageBase);
     statement_after_execution;
@@ -311,8 +299,7 @@ void test_mimikatz() {
     result = InlineExecutePE(features, stdin_, sizeof(stdin_), peImage,
                              (int)peImageSize, commandLine, sizeof(commandLine),
                              0, hEvent, &imageBase);
-    if (result != HookResultSuccess)
-      __debugbreak();
+    if (result != HookResultSuccess) __debugbreak();
     WaitForSingleObject(hEvent, INFINITE);
     InlineLogPE(imageBase);
     statement_after_execution;

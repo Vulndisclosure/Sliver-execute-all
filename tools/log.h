@@ -9,15 +9,15 @@
 #define __fmtns fmt
 #endif
 
-#define print(fmt, ...)                                                        \
+#define print(fmt, ...) \
   fputs(__fmtns::format(fmt, ##__VA_ARGS__).c_str(), stdout)
 #define println(fmt, ...) puts(__fmtns::format(fmt, ##__VA_ARGS__).c_str())
 
-#define error(fmt, ...)                                                        \
-  fputs(__fmtns::format("\033[31m" fmt "\033[0m", ##__VA_ARGS__).c_str(),      \
+#define error(fmt, ...)                                                   \
+  fputs(__fmtns::format("\033[31m" fmt "\033[0m", ##__VA_ARGS__).c_str(), \
         stderr)
-#define errorln(fmt, ...)                                                      \
-  fputs(__fmtns::format("\033[31m" fmt "\033[0m\n", ##__VA_ARGS__).c_str(),    \
+#define errorln(fmt, ...)                                                   \
+  fputs(__fmtns::format("\033[31m" fmt "\033[0m\n", ##__VA_ARGS__).c_str(), \
         stderr)
 
 #ifdef _DEBUG

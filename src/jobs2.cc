@@ -1,12 +1,14 @@
 #include "jobs.h"
 
 BOOL IsExecutableRegion(PVOID address, PMEMORY_BASIC_INFORMATION mbi) {
-  if (!address || !mbi)
+  if (!address || !mbi) {
     return FALSE;
+  }
 
   SIZE_T result = VirtualQuery(address, mbi, sizeof(MEMORY_BASIC_INFORMATION));
-  if (!result)
+  if (!result) {
     return FALSE;
+  }
 
   return mbi->State == MEM_COMMIT &&
          (mbi->Protect & (PAGE_EXECUTE | PAGE_EXECUTE_READ |
@@ -14,16 +16,18 @@ BOOL IsExecutableRegion(PVOID address, PMEMORY_BASIC_INFORMATION mbi) {
 }
 
 BOOL FindExecutableRegion(PVOID hint, PVOID *address, PSIZE_T size) {
-  if (!hint || !address || !size)
+  if (!hint || !address || !size) {
     return FALSE;
+  }
 
   *address = NULL;
   *size = 0;
 
   // Check if the hint address is in an executable region
   MEMORY_BASIC_INFORMATION mbi;
-  if (!IsExecutableRegion(hint, &mbi))
+  if (!IsExecutableRegion(hint, &mbi)) {
     return FALSE;
+  }
 
   // Initialize the start and end addresses of the region
   PBYTE regionStart = (PBYTE)mbi.BaseAddress;
@@ -32,8 +36,9 @@ BOOL FindExecutableRegion(PVOID hint, PVOID *address, PSIZE_T size) {
   // Find the start address of the executable region
   PBYTE addr = regionStart;
   while (addr > (PBYTE)0) {
-    if (!IsExecutableRegion(addr - 1, &mbi))
+    if (!IsExecutableRegion(addr - 1, &mbi)) {
       break;
+    }
     addr = (PBYTE)mbi.BaseAddress;
     regionStart = addr;
   }
@@ -41,8 +46,9 @@ BOOL FindExecutableRegion(PVOID hint, PVOID *address, PSIZE_T size) {
   // Find the end address of the executable region
   addr = regionEnd;
   while (addr <= (PBYTE)MAXLONG_PTR) {
-    if (!IsExecutableRegion(addr, &mbi))
+    if (!IsExecutableRegion(addr, &mbi)) {
       break;
+    }
 
     regionEnd = (PBYTE)mbi.BaseAddress + mbi.RegionSize;
     addr = regionEnd;
@@ -57,8 +63,9 @@ BOOL FindExecutableRegion(PVOID hint, PVOID *address, PSIZE_T size) {
 
 SIZE_T FindPattern(PVOID address, SIZE_T size, const USHORT *pattern,
                    SIZE_T patternSize) {
-  if (!address || !pattern || patternSize == 0 || size < patternSize)
+  if (!address || !pattern || patternSize == 0 || size < patternSize) {
     return SIZE_MAX;
+  }
 
   PBYTE p = (PBYTE)address;
   for (SIZE_T i = 0; i <= size - patternSize; i++) {
@@ -71,20 +78,22 @@ SIZE_T FindPattern(PVOID address, SIZE_T size, const USHORT *pattern,
         break;
       }
     }
-    if (found)
+    if (found) {
       return i;
+    }
   }
 
   return SIZE_MAX;
 }
 
-#define DECODE_REL32_OP(op)                                                    \
+#define DECODE_REL32_OP(op) \
   (void *)(((char *)(op) + 4) + *(int *)((char *)(op)))
 #define DECODE_IMM32_OP(op) (void *)(*(unsigned int *)(op))
 
 BOOL FindJobList(PVOID hint, JobEntry ***ppJobList, int **ppJobIdCounter) {
-  if (!hint || !ppJobList || !ppJobIdCounter)
+  if (!hint || !ppJobList || !ppJobIdCounter) {
     return FALSE;
+  }
 
   *ppJobList = NULL;
   *ppJobIdCounter = NULL;
@@ -94,8 +103,9 @@ BOOL FindJobList(PVOID hint, JobEntry ***ppJobList, int **ppJobIdCounter) {
   BOOL result = FindExecutableRegion(hint, &textAddress, &textSize);
   TRACEF("Beacon text section: hint: %p, start: %p, size: %x", hint,
          textAddress, (UINT)textSize);
-  if (!result)
+  if (!result) {
     return FALSE;
+  }
 
 #ifdef _WIN64
   USHORT pattern[] = {
@@ -181,8 +191,9 @@ void AddJob_(JobEntry *entry, JobEntry **list) {
 JobEntry *CreateJobV1(int id, HANDLE hReadPipe, HANDLE hWritePipe, int type,
                       const char *description, JobEntry **list) {
   JobEntryV1 *entry = (JobEntryV1 *)malloc(sizeof(JobEntryV1));
-  if (!entry)
+  if (!entry) {
     return NULL;
+  }
   entry->JobId = id;
   entry->OutputReadHandle = hReadPipe;
   entry->OutputWriteHandle = hWritePipe;
@@ -194,8 +205,9 @@ JobEntry *CreateJobV1(int id, HANDLE hReadPipe, HANDLE hWritePipe, int type,
   entry->IsPacket = FALSE;
   for (int i = 0; i < JobDescriptionMax; i++) {
     entry->Description[i] = description[i];
-    if (description[i] == '\0')
+    if (description[i] == '\0') {
       break;
+    }
   }
   entry->Description[JobDescriptionMax - 1] = '\0';
   TRACEF("JobEntryV1 was created: %p", entry);
@@ -205,8 +217,9 @@ JobEntry *CreateJobV1(int id, HANDLE hReadPipe, HANDLE hWritePipe, int type,
 JobEntry *CreateJobV2(int id, HANDLE hReadPipe, HANDLE hWritePipe, int type,
                       const char *description, JobEntry **list) {
   JobEntryV2 *entry = (JobEntryV2 *)malloc(sizeof(JobEntryV2));
-  if (!entry)
+  if (!entry) {
     return NULL;
+  }
   entry->JobId = id;
   entry->OutputReadHandle = hReadPipe;
   entry->OutputWriteHandle = hWritePipe;
@@ -219,8 +232,9 @@ JobEntry *CreateJobV2(int id, HANDLE hReadPipe, HANDLE hWritePipe, int type,
   entry->IsPacket = FALSE;
   for (int i = 0; i < JobDescriptionMax; i++) {
     entry->Description[i] = description[i];
-    if (description[i] == '\0')
+    if (description[i] == '\0') {
       break;
+    }
   }
   entry->Description[JobDescriptionMax - 1] = '\0';
   TRACEF("JobEntryV2 was created: %p", entry);
@@ -236,8 +250,9 @@ BOOL SimpleAddJob(int version, int type, const char *description,
   // Find JobList and JobIdCounter by pattern matching
   JobEntry **jobList = NULL;
   int *jobIdCounter = NULL;
-  if (!FindJobList((PVOID)&BeaconPrintf, &jobList, &jobIdCounter))
+  if (!FindJobList((PVOID)&BeaconPrintf, &jobList, &jobIdCounter)) {
     return FALSE;
+  }
 
   // Create a pipe for the job
   HANDLE hJobReadPipe = NULL;
@@ -250,14 +265,15 @@ BOOL SimpleAddJob(int version, int type, const char *description,
   // Create a job entry
   int jobId = (*jobIdCounter)++;
   JobEntry *entry;
-  if (version == 1)
+  if (version == 1) {
     entry = CreateJobV1(jobId, hJobReadPipe, hJobWritePipe, type, description,
                         jobList);
-  else if (version == 2)
+  } else if (version == 2) {
     entry = CreateJobV2(jobId, hJobReadPipe, hJobWritePipe, type, description,
                         jobList);
-  else
+  } else {
     entry = NULL;
+  }
   if (!entry) {
     TRACEF("Failed to create a job entry.");
     CloseHandle(hJobReadPipe);

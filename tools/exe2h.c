@@ -9,16 +9,13 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #else
-#define _PUSHPOP_SUPPORTED
-#define UNALIGNED
-#define DUMMYUNIONNAME
-#define DUMMYSTRUCTNAME
 #include "pe.h"
 #endif
 
 static void *ReadFileBytes(const char *file_name, size_t *size) {
-  if (!file_name)
+  if (!file_name) {
     return NULL;
+  }
 
   FILE *file = NULL;
   size_t file_size = 0;
@@ -26,45 +23,38 @@ static void *ReadFileBytes(const char *file_name, size_t *size) {
 
   // Open the file
   file = fopen(file_name, "rb");
-  if (!file)
-    goto err;
+  if (!file) goto err;
   fseek(file, 0, SEEK_END);
   file_size = ftell(file);
-  if (file_size == -1)
-    goto err;
+  if (file_size == -1) goto err;
   rewind(file);
 
   // Read the file
   data = malloc(file_size);
-  if (!data || fread(data, 1, file_size, file) != file_size)
-    goto err;
+  if (!data || fread(data, 1, file_size, file) != file_size) goto err;
 
-  if (size)
-    *size = file_size;
+  if (size) *size = file_size;
   fclose(file);
   return data;
 
 err:
-  if (size)
-    *size = 0;
-  if (data)
-    free(data);
-  if (file)
-    fclose(file);
+  if (size) *size = 0;
+  if (data) free(data);
+  if (file) fclose(file);
   return NULL;
 }
 
 static bool WriteFileBytes(const char *file_name, void *data, size_t size) {
-  if (!file_name || !data || size <= 0)
+  if (!file_name || !data || size <= 0) {
     return false;
+  }
 
   FILE *file = NULL;
   size_t written = 0;
 
   // Open the file
   file = fopen(file_name, "wb");
-  if (!file)
-    return false;
+  if (!file) return false;
 
   // Write the data
   written = fwrite(data, 1, size, file);
@@ -79,22 +69,26 @@ static bool WriteFileBytes(const char *file_name, void *data, size_t size) {
 
 const char *GetFileName(const char *path) {
   const char *name = strrchr(path, '\\');
-  if (!name)
+  if (!name) {
     name = strrchr(path, '/');
-  if (name)
+  }
+  if (name) {
     return name + 1;
+  }
   return path;
 }
 
 char *exe2h(void *pe_image, const char *variable_name) {
   PIMAGE_DOS_HEADER dos_header = (PIMAGE_DOS_HEADER)pe_image;
-  if (dos_header->e_magic != IMAGE_DOS_SIGNATURE)
+  if (dos_header->e_magic != IMAGE_DOS_SIGNATURE) {
     return NULL;
+  }
 
   PIMAGE_NT_HEADERS nt_headers =
       (PIMAGE_NT_HEADERS)((char *)pe_image + dos_header->e_lfanew);
-  if (nt_headers->Signature != IMAGE_NT_SIGNATURE)
+  if (nt_headers->Signature != IMAGE_NT_SIGNATURE) {
     return NULL;
+  }
 
   // Check the relocation table
   PIMAGE_DATA_DIRECTORY reloc_directory = NULL;
@@ -120,26 +114,28 @@ char *exe2h(void *pe_image, const char *variable_name) {
       break;
     }
   }
-  if (!text_section)
+  if (!text_section) {
     return NULL;
+  }
   uint32_t text_offset = (uint32_t)text_section->PointerToRawData;
   uint32_t text_size = (uint32_t)text_section->Misc.VirtualSize;
-  if (!text_offset || !text_size)
+  if (!text_offset || !text_size) {
     return NULL;
+  }
   uint8_t *text_data = (uint8_t *)pe_image + text_offset;
 
   // Convert the .text section to a C array
   size_t buffer_size = (size_t)text_size * 8 + 200;
   char *buffer = (char *)malloc(buffer_size);
-  if (!buffer)
+  if (!buffer) {
     return NULL;
+  }
   char *p = buffer;
   size_t c = 0;
   p += snprintf(p, buffer_size - (p - buffer),
                 "#pragma once\n\nunsigned char %s[] = {", variable_name);
   for (uint32_t i = 0; i < text_size; i++) {
-    if (!(i % 12))
-      p += snprintf(p, buffer_size - (p - buffer), "\n  ");
+    if (!(i % 12)) p += snprintf(p, buffer_size - (p - buffer), "\n  ");
     p += snprintf(p, buffer_size - (p - buffer), "0x%02x, ", text_data[i]);
   }
   p += snprintf(p, buffer_size - (p - buffer), "\n};\n");

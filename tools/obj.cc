@@ -1,4 +1,5 @@
 #include "obj.h"
+
 #include <algorithm>
 #include <cassert>
 #include <cstring>
@@ -9,8 +10,9 @@
  *============================================================================*/
 
 bool ObjectFile::Load(const void *data) {
-  if (!data)
+  if (!data) {
     return false;
+  }
 
   // Parse the COFF header
   auto coff_header = reinterpret_cast<const IMAGE_FILE_HEADER *>(data);
@@ -18,28 +20,43 @@ bool ObjectFile::Load(const void *data) {
 
   // Parse the sections
   auto p = reinterpret_cast<const uint8_t *>(data);
-  auto section_headers = reinterpret_cast<const IMAGE_SECTION_HEADER *>(
+  auto raw_sections = reinterpret_cast<const IMAGE_SECTION_HEADER *>(
       p + sizeof(IMAGE_FILE_HEADER));
   size_t section_count = header_.NumberOfSections;
   sections_.resize(section_count);
   for (size_t i = 0; i < section_count; i++) {
-    const IMAGE_SECTION_HEADER *section_header = &section_headers[i];
-    auto name = reinterpret_cast<const char *>(section_header->Name);
-    auto &section = sections_[i];
-    section.file_ = this;
-    section.header_ = *section_header;
-    section.name_.assign(name, strnlen(name, IMAGE_SIZEOF_SHORT_NAME));
-    section.offset_ = section_header->PointerToRawData;
-    if (section_header->SizeOfRawData &&
-        !(section_header->Characteristics & IMAGE_SCN_CNT_UNINITIALIZED_DATA)) {
+    // Parse the section name
+    const IMAGE_SECTION_HEADER *raw_section = &raw_sections[i];
+    auto raw_name = reinterpret_cast<const char *>(raw_section->Name);
+    // TODO: name can also be a pointer to a string in the string table
+    std::string name(raw_name, strnlen(raw_name, IMAGE_SIZEOF_SHORT_NAME));
+
+    // Parse the section data
+    std::vector<uint8_t> data_;
+    if (raw_section->SizeOfRawData &&
+        !(raw_section->Characteristics & IMAGE_SCN_CNT_UNINITIALIZED_DATA)) {
       auto t = reinterpret_cast<const uint8_t *>(data) +
-               section_header->PointerToRawData;
-      section.data_.assign(t, t + section_header->SizeOfRawData);
+               raw_section->PointerToRawData;
+      data_.assign(t, t + raw_section->SizeOfRawData);
     }
-    if (section_header->NumberOfRelocations) {
-      auto t = reinterpret_cast<const IMAGE_RELOCATION *>(
-          p + section_header->PointerToRelocations);
-      section.relocs_.assign(t, t + section_header->NumberOfRelocations);
+
+    // Add the section to the section table
+    sections_[i] = std::make_unique<ObjectSection>(
+        this, i, *raw_section, std::move(name), std::move(data_),
+        std::vector<std::unique_ptr<ObjectRelocation>>());
+
+    // Parse the relocations
+    size_t reloc_count = raw_section->NumberOfRelocations;
+    if (!reloc_count) {
+      continue;
+    }
+    auto raw_relocs = reinterpret_cast<const IMAGE_RELOCATION *>(
+        p + raw_section->PointerToRelocations);
+    auto &relocs = sections_[i]->relocs_;
+    relocs.resize(reloc_count);
+    for (size_t j = 0; j < reloc_count; j++) {
+      relocs[j] = std::make_unique<ObjectRelocation>(sections_[i].get(), j,
+                                                     raw_relocs[j]);
     }
   }
 
@@ -50,20 +67,29 @@ bool ObjectFile::Load(const void *data) {
       reinterpret_cast<const char *>(symbols + header_.NumberOfSymbols);
   auto symbol_count = (uint32_t)header_.NumberOfSymbols;
   for (uint32_t i = 0; i < symbol_count; i++) {
-    auto sym = &symbols[i];
-    auto &symbol = symbols_.emplace_back();
-    symbol.file_ = this;
-    symbol.symbol_ = *sym;
-    if (sym->N.Name.Short == 0)
-      symbol.name_.assign(strings + sym->N.Name.Long);
-    else {
-      auto t = reinterpret_cast<const char *>(sym->N.ShortName);
-      symbol.name_.assign(t, strnlen(t, IMAGE_SIZEOF_SHORT_NAME));
+    // Parse the auxiliary symbols
+    const IMAGE_SYMBOL *raw_symbol = &symbols[i];
+    std::vector<IMAGE_AUX_SYMBOL> aux_symbols;
+    if (raw_symbol->NumberOfAuxSymbols) {
+      aux_symbols.resize(raw_symbol->NumberOfAuxSymbols);
+      auto t = reinterpret_cast<const IMAGE_AUX_SYMBOL *>(raw_symbol + 1);
+      std::copy(t, t + raw_symbol->NumberOfAuxSymbols, aux_symbols.begin());
     }
-    for (uint32_t j = 0; j < sym->NumberOfAuxSymbols; j++)
-      symbol.aux_symbols_.push_back(
-          *reinterpret_cast<const IMAGE_AUX_SYMBOL *>(&symbols[i + j + 1]));
-    i += sym->NumberOfAuxSymbols;
+
+    // Parse the name of the symbol
+    std::string name;
+    if (raw_symbol->N.Name.Short == 0) {
+      name.assign(strings + raw_symbol->N.Name.Long);
+    } else {
+      auto t = reinterpret_cast<const char *>(raw_symbol->N.ShortName);
+      name.assign(t, strnlen(t, IMAGE_SIZEOF_SHORT_NAME));
+    }
+
+    // Add the symbol to the symbol table
+    symbols_.push_back(std::make_unique<ObjectSymbol>(
+        this, symbols_.size(), i, *raw_symbol, std::move(aux_symbols),
+        std::move(name)));
+    i += raw_symbol->NumberOfAuxSymbols;
   }
 
   // Parse the string table
@@ -74,18 +100,17 @@ bool ObjectFile::Load(const void *data) {
 
 bool ObjectFile::Save(std::vector<uint8_t> &data) {
   // Calculate the size of the object file
-  size_t sections_size = 0;
+  uint32_t sections_size = 0;
   size_t relocs_size = 0;
   for (auto &&section : sections_) {
-    if (!section.data_.empty())
+    if (!section->data_.empty()) {
       sections_size =
-          std::max(section.offset_ + section.data_.size(), sections_size);
-    relocs_size += section.relocs_.size() * sizeof(IMAGE_RELOCATION);
+          std::max(section->offset() + section->size(), sections_size);
+    }
+    relocs_size += section->relocs_.size() * sizeof(IMAGE_RELOCATION);
   }
-  size_t symbols_size = 0;
-  for (auto &&symbol : symbols_)
-    symbols_size += sizeof(IMAGE_SYMBOL) +
-                    symbol.aux_symbols_.size() * sizeof(IMAGE_AUX_SYMBOL);
+  size_t symbols_size =
+      symbols_.back()->next_real_index() * sizeof(IMAGE_SYMBOL);
   size_t size = sections_size + relocs_size + symbols_size + strings_.size();
 
   // Allocate memory for the object file
@@ -99,26 +124,31 @@ bool ObjectFile::Save(std::vector<uint8_t> &data) {
   // Copy the sections
   size_t relocs_offset = sections_size;
   header->NumberOfSections = (WORD)sections_.size();
-  auto section_headers = reinterpret_cast<IMAGE_SECTION_HEADER *>(
+  auto raw_sections = reinterpret_cast<IMAGE_SECTION_HEADER *>(
       data.data() + sizeof(IMAGE_FILE_HEADER));
   size_t index = 0;
   for (auto &&section : sections_) {
-    auto section_header = &section_headers[index];
-    *section_header = section.header_;
-    auto &data2 = section.data_;
+    // Copy the section header
+    IMAGE_SECTION_HEADER *raw_section = &raw_sections[index];
+    *raw_section = section->header_;
+
+    // Copy the section data
+    auto &data2 = section->data_;
     if (!data2.empty()) {
-      auto t = data.data() + section.offset_;
+      auto t = data.data() + section->offset();
       std::copy(data2.begin(), data2.end(), t);
-      section_header->PointerToRawData = (DWORD)section.offset_;
-      section_header->SizeOfRawData = (DWORD)data2.size();
+      raw_section->PointerToRawData = section->offset();
+      raw_section->SizeOfRawData = (DWORD)data2.size();
     }
-    auto &relocs = section.relocs_;
+
+    // Copy the relocations
+    auto &relocs = section->relocs_;
     if (!relocs.empty()) {
       auto t =
           reinterpret_cast<IMAGE_RELOCATION *>(data.data() + relocs_offset);
-      std::copy(relocs.begin(), relocs.end(), t);
-      section_header->PointerToRelocations = (DWORD)relocs_offset;
-      section_header->NumberOfRelocations = (WORD)relocs.size();
+      for (auto &&reloc : relocs) *(t++) = reloc->reloc_;
+      raw_section->PointerToRelocations = (DWORD)relocs_offset;
+      raw_section->NumberOfRelocations = (WORD)relocs.size();
       relocs_offset += relocs.size() * sizeof(IMAGE_RELOCATION);
     }
     index++;
@@ -131,9 +161,14 @@ bool ObjectFile::Save(std::vector<uint8_t> &data) {
   auto symbols = reinterpret_cast<IMAGE_SYMBOL *>(data.data() + symbols_offset);
   index = 0;
   for (auto &&symbol : symbols_) {
-    symbols[index++] = symbol.symbol_;
-    for (auto &&aux_symbol : symbol.aux_symbols_)
-      symbols[index++] = *reinterpret_cast<IMAGE_SYMBOL *>(&aux_symbol);
+    assert(index == symbol->real_index());
+    symbols[index++] = symbol->symbol();
+    const std::vector<IMAGE_AUX_SYMBOL> &aux_symbols = symbol->aux_symbols();
+    if (aux_symbols.size()) {
+      auto t = reinterpret_cast<IMAGE_AUX_SYMBOL *>(symbols + index);
+      std::copy(aux_symbols.begin(), aux_symbols.end(), t);
+      index += aux_symbols.size();
+    }
   }
   header->PointerToSymbolTable = (DWORD)symbols_offset;
   header->NumberOfSymbols = (DWORD)index;
@@ -150,27 +185,40 @@ bool ObjectFile::Save(std::vector<uint8_t> &data) {
 
 ObjectSection *ObjectFile::FindSection(std::string_view name) {
   for (auto &&section : sections_) {
-    if (section.name_ == name)
-      return &section;
+    if (section->name_ == name) {
+      return section.get();
+    }
   }
   return nullptr;
 }
 
 ObjectSymbol *ObjectFile::FindSymbol(std::string_view name) {
   for (auto &&symbol : symbols_) {
-    if (symbol.name_ == name)
-      return &symbol;
+    if (symbol->name() == name) {
+      return symbol.get();
+    }
+  }
+  return nullptr;
+}
+
+ObjectSymbol *ObjectFile::FindSymbol(size_t real_index) {
+  for (auto &&symbol : symbols_) {
+    if (symbol->real_index() == real_index) {
+      return symbol.get();
+    }
   }
   return nullptr;
 }
 
 ObjectSection &ObjectFile::AddSection(std::string_view name) {
-  auto &section = sections_.emplace_back();
-  section.file_ = this;
+  auto &section = sections_.emplace_back(std::make_unique<ObjectSection>());
+  section->file_ = this;
+  section->index_ = sections_.size() - 1;
+  // TODO: offset, name_size>=8 like symbol
   size_t name_size = std::min(name.size(), (size_t)IMAGE_SIZEOF_SHORT_NAME);
-  std::copy_n(name.begin(), name_size, section.header_.Name);
-  section.name_ = name.substr(0, name_size);
-  return section;
+  std::copy_n(name.begin(), name_size, section->header_.Name);
+  section->name_ = name.substr(0, name_size);
+  return *section;
 }
 
 ObjectSection &ObjectFile::AddSection(std::string_view name,
@@ -181,20 +229,23 @@ ObjectSection &ObjectFile::AddSection(std::string_view name,
 }
 
 ObjectSymbol &ObjectFile::AddSymbol(std::string_view name) {
-  auto &symbol = symbols_.emplace_back();
-  symbol.file_ = this;
-  symbol.SetName(name);
-  return symbol;
+  auto &last_symbol = *symbols_.back();
+  auto &symbol = symbols_.emplace_back(std::make_unique<ObjectSymbol>());
+  symbol->file_ = this;
+  symbol->index_ = symbols_.size() - 1;
+  symbol->real_index_ = last_symbol.next_real_index();
+  symbol->UpdateName(name);
+  return *symbol;
 }
 
 ObjectSymbol &ObjectFile::AddSymbol(std::string_view name, uint32_t value,
-                                    uint32_t section, uint16_t type,
+                                    int16_t section, uint16_t type,
                                     uint8_t storage) {
   auto &symbol = AddSymbol(name);
-  symbol.symbol_.Value = value;
-  symbol.symbol_.SectionNumber = (SHORT)section;
-  symbol.symbol_.Type = type;
-  symbol.symbol_.StorageClass = storage;
+  symbol.set_value(value);
+  symbol.set_section(section);
+  symbol.set_type(type);
+  symbol.set_storage(storage);
   return symbol;
 }
 
@@ -202,8 +253,9 @@ ObjectSymbol &ObjectFile::AddSymbol(std::string_view name,
                                     ObjectSection &section,
                                     std::span<const uint8_t> data,
                                     uint16_t type, uint8_t storage) {
-  return AddSymbol(name, (DWORD)section.AddData(data),
-                   (uint16_t)section.index() + 1, type, storage);
+  uint32_t value = (uint32_t)section.AddData(data);
+  int16_t section_number = (int16_t)(uint16_t)section.index() + 1;
+  return AddSymbol(name, value, section_number, type, storage);
 }
 
 size_t ObjectFile::AddString(std::string_view s) {
@@ -219,21 +271,23 @@ size_t ObjectFile::AddString(std::string_view s) {
 
 size_t ObjectSection::Resize(size_t new_size) {
   size_t old_size = data_.size();
-  if (new_size == old_size)
+  if (new_size == old_size) {
     return old_size;
+  }
 
   // Resize the section
-  size_t diff_size = (size_t)(new_size - old_size);
+  uint32_t diff_size = (uint32_t)(new_size - old_size);
   data_.resize(new_size);
-  if ((intptr_t)diff_size > 0) {
+  if ((int32_t)diff_size > 0) {
     int value = header_.Characteristics & IMAGE_SCN_MEM_EXECUTE ? 0xCC : 0;
     std::fill_n(data_.data() + old_size, diff_size, value);
   }
 
   // Update the offsets of other sections
-  for (auto &&section : file_->sections_) {
-    if (section.offset_ > offset_)
-      section.offset_ += diff_size;
+  for (auto &&section : file_->sections()) {
+    if (section->offset() > offset()) {
+      section->set_offset(section->offset() + diff_size);
+    }
   }
 
   return old_size;
@@ -245,32 +299,37 @@ size_t ObjectSection::AddData(std::span<const uint8_t> data) {
   return offset;
 }
 
-IMAGE_RELOCATION &ObjectSection::AddReloc(uint32_t offset, uint32_t symbol,
+ObjectRelocation &ObjectSection::AddReloc(uint32_t offset, uint32_t symbol,
                                           uint16_t type) {
-  auto &reloc = relocs_.emplace_back(IMAGE_RELOCATION{
+  auto &reloc = relocs_.emplace_back(std::make_unique<ObjectRelocation>());
+  reloc->section_ = this;
+  reloc->index_ = relocs_.size() - 1;
+  reloc->reloc_ = IMAGE_RELOCATION{
       .VirtualAddress = offset,
       .SymbolTableIndex = symbol,
       .Type = type,
-  });
-  return reloc;
+  };
+  return *reloc;
+}
+
+ObjectRelocation &ObjectSection::AddReloc(uint32_t offset,
+                                          const ObjectSymbol &symbol,
+                                          uint16_t type) {
+  return AddReloc(offset, (uint32_t)symbol.real_index(), type);
 }
 
 /*==============================================================================
  * ObjectSymbol
  *============================================================================*/
 
-size_t ObjectSymbol::GetRealIndex() const {
-  size_t index = 0;
-  for (auto &&symbol : file_->symbols_) {
-    if (&symbol == this)
-      return index;
-    index += (size_t)symbol.symbol_.NumberOfAuxSymbols + 1;
-  }
-  assert(false);
-  return index;
+void ObjectSymbol::UpdateData(ObjectSection &section,
+                              std::span<const uint8_t> data) {
+  uint32_t value = (uint32_t)section.AddData(data);
+  set_value(value);
+  set_section(section);
 }
 
-void ObjectSymbol::SetName(std::string_view name) {
+void ObjectSymbol::UpdateName(std::string_view name) {
   name_ = name;
   if (name.size() <= IMAGE_SIZEOF_SHORT_NAME) {
     std::fill_n(symbol_.N.ShortName, IMAGE_SIZEOF_SHORT_NAME, 0);

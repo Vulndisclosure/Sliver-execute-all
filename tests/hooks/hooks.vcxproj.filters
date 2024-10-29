@@ -18,21 +18,21 @@
     <ClCompile Include="dllmain.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\hooks.cpp">
+    <ClCompile Include="..\..\src\hooks.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\pipeserver.c">
+    <ClCompile Include="..\..\src\pipeserver.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\simplelist2.c">
+    <ClCompile Include="..\..\src\simplelist2.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\simplelist1.c">
+    <ClCompile Include="..\..\src\simplelist1.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\src\hooks.hpp">
+    <ClInclude Include="..\..\src\hooks.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\hookspub.h">
@@ -44,10 +44,10 @@
     <ClInclude Include="..\..\src\simplelist.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\xorstr.hpp">
+    <ClInclude Include="..\..\src\xorstr.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\stkstr.hpp">
+    <ClInclude Include="..\..\src\stkstr.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\globalshareddata.h">

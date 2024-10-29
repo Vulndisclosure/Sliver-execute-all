@@ -1,5 +1,8 @@
 #include "globalshareddata.h"
+
 #include <intrin.h>
+#include <memory.h>
+#include <stdlib.h>
 
 GlobalSharedData *GetGlobalSharedData() {
   // Create the key of shared data
@@ -19,8 +22,7 @@ GlobalSharedData *GetGlobalSharedData() {
     SIZE_T value = (SIZE_T)_strtoui64(valueStr, NULL, 16);
     data = (GlobalSharedData *)(value ^ key);
   } else {
-    while (!(data = (GlobalSharedData *)malloc(sizeof(GlobalSharedData))))
-      ;
+    while (!(data = (GlobalSharedData *)malloc(sizeof(GlobalSharedData))));
     memset(data, 0, sizeof(GlobalSharedData));
     SIZE_T value = (SIZE_T)data ^ key;
     _ui64toa((ULONG64)value, valueStr, 16);

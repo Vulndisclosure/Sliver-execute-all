@@ -8,8 +8,9 @@ PVOID GetFunctionTable(PVOID imageBase, PDWORD size) {
   PIMAGE_RUNTIME_FUNCTION_ENTRY functionTable =
       (PIMAGE_RUNTIME_FUNCTION_ENTRY)((PBYTE)imageBase +
                                       exceptionDirectory->VirtualAddress);
-  if (size)
+  if (size) {
     *size = exceptionDirectory->Size / sizeof(IMAGE_RUNTIME_FUNCTION_ENTRY);
+  }
   return (PVOID)functionTable;
 }
 
@@ -49,7 +50,7 @@ const unsigned char NtQueryVirtualMemoryHook[169] = {
 #define NtQueryVirtualMemoryHook_TrampolineJmpRel32 0xA4
 
 #define ENCODE_JMP_REL32(from, to) (int)((char *)(to) - ((char *)(from) + 5))
-#define DECODE_JMP_REL32(from)                                                 \
+#define DECODE_JMP_REL32(from) \
   (void *)(((char *)(from) + 5) + *(int *)((char *)(from) + 1))
 
 // Hook NtQueryVirtualMemory to bypass RtlIsValidHandler
@@ -93,8 +94,9 @@ bool InstallNtQueryVirtualMemoryHook(PVOID **imageBaseList) {
     *(PINT)(myJmpRel32 + 1) = ENCODE_JMP_REL32(myJmpRel32, (PBYTE)target + 5);
   } else if (instruction.Bytes[0] == 0xE9) {
     // First instruction is 'jmp rel32' (already hooked)
-    TRACEF("First instruction of ntdll!NtQueryVirtualMemory is 'jmp rel32' "
-           "(already hooked).");
+    TRACEF(
+        "First instruction of ntdll!NtQueryVirtualMemory is 'jmp rel32' "
+        "(already hooked).");
     PVOID existingDetour = DECODE_JMP_REL32(target);
     PBYTE myCallRel32 = (PBYTE)p + NtQueryVirtualMemoryHook_DetourCallRel32;
     *(PINT)(myCallRel32 + 1) = ENCODE_JMP_REL32(myCallRel32, existingDetour);
@@ -113,9 +115,10 @@ bool InstallNtQueryVirtualMemoryHook(PVOID **imageBaseList) {
   NtFlushInstructionCache((HANDLE)-1, NULL, 0);
 
   PRINTF("Hook of ntdll!NtQueryVirtualMemory was installed. (p: %p)", p);
-  if (imageBaseList)
+  if (imageBaseList) {
     *imageBaseList =
         (PVOID *)((PBYTE)p + NtQueryVirtualMemoryHook_ImageBaseList);
+  }
   return true;
 }
 
@@ -135,8 +138,9 @@ PVOID EnableSEH(PVOID imageBase) {
   GlobalSharedData *data = GetGlobalSharedData();
   if (!data->SEH_ImageBaseList) {
     TRACEF("Begin to install NtQueryVirtualMemory hook.");
-    if (!InstallNtQueryVirtualMemoryHook((PVOID **)&data->SEH_ImageBaseList))
+    if (!InstallNtQueryVirtualMemoryHook((PVOID **)&data->SEH_ImageBaseList)) {
       return NULL;
+    }
   }
 
   // Add to ImageBaseList

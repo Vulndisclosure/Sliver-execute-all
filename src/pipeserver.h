@@ -1,6 +1,7 @@
 #pragma once
-#include "simplelist.h"
 #include <windows.h>
+
+#include "simplelist.h"
 
 typedef struct {
   volatile HANDLE ReadHandle;

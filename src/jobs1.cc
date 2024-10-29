@@ -15,8 +15,9 @@ JobEntry *RemoveJob(int id, JobEntry **list) {
 }
 
 BOOL SimpleRemoveJob(JobEntry **list, int id) {
-  if (!list || id == -1)
+  if (!list || id == -1) {
     return FALSE;
+  }
 
   // Remove the job from the job list
   JobEntry *entry = RemoveJob(id, list);

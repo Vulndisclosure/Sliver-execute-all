@@ -9,16 +9,13 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #else
-#define _PUSHPOP_SUPPORTED
-#define UNALIGNED
-#define DUMMYUNIONNAME
-#define DUMMYSTRUCTNAME
 #include "pe.h"
 #endif
 
 static void *ReadFileBytes(const char *file_name, size_t *size) {
-  if (!file_name)
+  if (!file_name) {
     return NULL;
+  }
 
   FILE *file = NULL;
   size_t file_size = 0;
@@ -26,45 +23,38 @@ static void *ReadFileBytes(const char *file_name, size_t *size) {
 
   // Open the file
   file = fopen(file_name, "rb");
-  if (!file)
-    goto err;
+  if (!file) goto err;
   fseek(file, 0, SEEK_END);
   file_size = ftell(file);
-  if (file_size == -1)
-    goto err;
+  if (file_size == -1) goto err;
   rewind(file);
 
   // Read the file
   data = malloc(file_size);
-  if (!data || fread(data, 1, file_size, file) != file_size)
-    goto err;
+  if (!data || fread(data, 1, file_size, file) != file_size) goto err;
 
-  if (size)
-    *size = file_size;
+  if (size) *size = file_size;
   fclose(file);
   return data;
 
 err:
-  if (size)
-    *size = 0;
-  if (data)
-    free(data);
-  if (file)
-    fclose(file);
+  if (size) *size = 0;
+  if (data) free(data);
+  if (file) fclose(file);
   return NULL;
 }
 
 static bool WriteFileBytes(const char *file_name, void *data, size_t size) {
-  if (!file_name || !data || size <= 0)
+  if (!file_name || !data || size <= 0) {
     return false;
+  }
 
   FILE *file = NULL;
   size_t written = 0;
 
   // Open the file
   file = fopen(file_name, "wb");
-  if (!file)
-    return false;
+  if (!file) return false;
 
   // Write the data
   written = fwrite(data, 1, size, file);
@@ -79,16 +69,18 @@ static bool WriteFileBytes(const char *file_name, void *data, size_t size) {
 
 const char *GetFileName(const char *path) {
   const char *name = strrchr(path, '\\');
-  if (!name)
+  if (!name) {
     name = strrchr(path, '/');
-  if (name)
+  }
+  if (name) {
     return name + 1;
+  }
   return path;
 }
 
 #define starts_with(s, prefix) (strncmp((s), (prefix), strlen(prefix)) == 0)
-#define ends_with(s, suffix)                                                   \
-  (strlen(s) >= strlen(suffix) &&                                              \
+#define ends_with(s, suffix)      \
+  (strlen(s) >= strlen(suffix) && \
    strcmp((s) + strlen(s) - strlen(suffix), (suffix)) == 0)
 
 int main(int argc, char *argv[]) {
@@ -121,8 +113,9 @@ int main(int argc, char *argv[]) {
         // memset((char *)obj + section_offset, 0, section_size);
         char *p = (char *)obj + section_offset;
         for (uint32_t j = 0; j < section_size; j++) {
-          if (!ends_with(p + j, obj_name))
+          if (!ends_with(p + j, obj_name)) {
             continue;
+          }
           memset(p + j, 0, strlen(p + j));
         }
       }

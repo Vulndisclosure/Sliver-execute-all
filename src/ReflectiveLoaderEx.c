@@ -109,8 +109,7 @@ PVOID ReflectiveLoaderEx(PVOID *libraryAddress, PVOID loadLibraryA,
   uiValueC = uiBaseAddress;
 
   if (copyPEHeaders) {
-    while (uiValueA--)
-      *(BYTE *)uiValueC++ = *(BYTE *)uiValueB++;
+    while (uiValueA--) *(BYTE *)uiValueC++ = *(BYTE *)uiValueB++;
   }
 
   // STEP 2: load in all of our sections...
@@ -135,8 +134,7 @@ PVOID ReflectiveLoaderEx(PVOID *libraryAddress, PVOID loadLibraryA,
     // copy the section over
     uiValueD = ((PIMAGE_SECTION_HEADER)uiValueA)->SizeOfRawData;
 
-    while (uiValueD--)
-      *(BYTE *)uiValueB++ = *(BYTE *)uiValueC++;
+    while (uiValueD--) *(BYTE *)uiValueB++ = *(BYTE *)uiValueC++;
 
     // get the VA of the next section
     uiValueA += sizeof(IMAGE_SECTION_HEADER);
@@ -162,14 +160,16 @@ PVOID ReflectiveLoaderEx(PVOID *libraryAddress, PVOID loadLibraryA,
 
     // uiValueD = VA of the OriginalFirstThunk
     uiValueD = ((PIMAGE_IMPORT_DESCRIPTOR)uiValueC)->OriginalFirstThunk;
-    if (uiValueD)
+    if (uiValueD) {
       uiValueD += uiBaseAddress;
+    }
 
     // uiValueA = VA of the IAT (via first thunk not origionalfirstthunk)
     uiValueA =
         (uiBaseAddress + ((PIMAGE_IMPORT_DESCRIPTOR)uiValueC)->FirstThunk);
-    if (!uiValueD)
+    if (!uiValueD) {
       uiValueD = uiValueA;
+    }
 
     // itterate through all imported functions, importing by ordinal if no name
     // present
@@ -217,8 +217,9 @@ PVOID ReflectiveLoaderEx(PVOID *libraryAddress, PVOID loadLibraryA,
       }
       // get the next imported function
       uiValueA += sizeof(ULONG_PTR);
-      if (uiValueD)
+      if (uiValueD) {
         uiValueD += sizeof(ULONG_PTR);
+      }
     }
 
     // get the next import
@@ -264,12 +265,13 @@ PVOID ReflectiveLoaderEx(PVOID *libraryAddress, PVOID loadLibraryA,
         // perform the relocation, skipping IMAGE_REL_BASED_ABSOLUTE as
         // required. we dont use a switch statement to avoid the compiler
         // building a jump table which would not be very position independent!
-        if (((PIMAGE_RELOC)uiValueD)->type == IMAGE_REL_BASED_DIR64)
+        if (((PIMAGE_RELOC)uiValueD)->type == IMAGE_REL_BASED_DIR64) {
           *(ULONG_PTR *)(uiValueA + ((PIMAGE_RELOC)uiValueD)->offset) +=
               uiLibraryAddress;
-        else if (((PIMAGE_RELOC)uiValueD)->type == IMAGE_REL_BASED_HIGHLOW)
+        } else if (((PIMAGE_RELOC)uiValueD)->type == IMAGE_REL_BASED_HIGHLOW) {
           *(DWORD *)(uiValueA + ((PIMAGE_RELOC)uiValueD)->offset) +=
               (DWORD)uiLibraryAddress;
+        }
 #ifdef _M_ARM
         // Note: On ARM, the compiler optimization /O2 seems to introduce an off
         // by one issue, possibly a code gen bug. Using /O1 instead avoids this
@@ -311,12 +313,13 @@ PVOID ReflectiveLoaderEx(PVOID *libraryAddress, PVOID loadLibraryA,
           }
         }
 #endif
-        else if (((PIMAGE_RELOC)uiValueD)->type == IMAGE_REL_BASED_HIGH)
+        else if (((PIMAGE_RELOC)uiValueD)->type == IMAGE_REL_BASED_HIGH) {
           *(WORD *)(uiValueA + ((PIMAGE_RELOC)uiValueD)->offset) +=
               HIWORD(uiLibraryAddress);
-        else if (((PIMAGE_RELOC)uiValueD)->type == IMAGE_REL_BASED_LOW)
+        } else if (((PIMAGE_RELOC)uiValueD)->type == IMAGE_REL_BASED_LOW) {
           *(WORD *)(uiValueA + ((PIMAGE_RELOC)uiValueD)->offset) +=
               LOWORD(uiLibraryAddress);
+        }
 
         // get the next entry in the current relocation block
         uiValueD += sizeof(IMAGE_RELOC);

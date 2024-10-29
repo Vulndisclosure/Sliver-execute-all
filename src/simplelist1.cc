@@ -1,5 +1,6 @@
-#include "simplelist.h"
 #include <stdlib.h>
+
+#include "simplelist.h"
 
 int SimpleListAlloc(SimpleList *list, int initialSize) {
   list->Buffer = malloc(initialSize);

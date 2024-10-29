@@ -9,8 +9,7 @@ DWORD seh_filter(DWORD code) {
 int main(int argc, char **argv) {
   int a = 0;
   __try {
-    while (argc)
-      argc--;
+    while (argc) argc--;
     a = 123 / argc;
   } __except (seh_filter(GetExceptionCode())) {
     printf("__except: %x\n", GetExceptionCode());

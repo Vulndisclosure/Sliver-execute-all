@@ -11,10 +11,10 @@ BOF_FLAGS="$COMMON_FLAGS -D BOF"
 
 mkdir -p bin
 
-$CC32 src/hooks.cpp src/hooks.x86.obj $COMMON_FLAGS $HOOKS_FLAGS -o bin/hooks.x86.exe &
-$CC64 src/hooks.cpp src/hooks.x64.obj $COMMON_FLAGS $HOOKS_FLAGS -o bin/hooks.x64.exe &
-$CC32 src/hooks.cpp src/hooks.x86.obj $COMMON_FLAGS $HOOKS_FLAGS -D _DEBUG -o bin/hooks.x86d.exe &
-$CC64 src/hooks.cpp src/hooks.x64.obj $COMMON_FLAGS $HOOKS_FLAGS -D _DEBUG -o bin/hooks.x64d.exe &
+$CC32 src/hooks.cc src/hooks.x86.obj $COMMON_FLAGS $HOOKS_FLAGS -o bin/hooks.x86.exe &
+$CC64 src/hooks.cc src/hooks.x64.obj $COMMON_FLAGS $HOOKS_FLAGS -o bin/hooks.x64.exe &
+$CC32 src/hooks.cc src/hooks.x86.obj $COMMON_FLAGS $HOOKS_FLAGS -D _DEBUG -o bin/hooks.x86d.exe &
+$CC64 src/hooks.cc src/hooks.x64.obj $COMMON_FLAGS $HOOKS_FLAGS -D _DEBUG -o bin/hooks.x64d.exe &
 wait
 
 gcc tools/exe2h.c -otools/exe2h
@@ -22,18 +22,18 @@ gcc tools/exe2h.c -otools/exe2h
 mv hooks_*_exe.h src
 rm tools/exe2h bin/hooks.*.exe
 
-$CC32 -c src/inlineexecutepe.cpp $BOF_FLAGS -o bin/inlineexecutepe.x86.o &
-$CC64 -c src/inlineexecutepe.cpp $BOF_FLAGS -o bin/inlineexecutepe.x64.o &
-$CC32 -c src/inlineexecutepe.cpp $BOF_FLAGS -D _DEBUG -o bin/inlineexecutepe.x86d.o &
-$CC64 -c src/inlineexecutepe.cpp $BOF_FLAGS -D _DEBUG -o bin/inlineexecutepe.x64d.o &
-$CC32 -c src/inlinelogpe.cpp $BOF_FLAGS -o bin/inlinelogpe.x86.o &
-$CC64 -c src/inlinelogpe.cpp $BOF_FLAGS -o bin/inlinelogpe.x64.o &
-$CC32 -c src/inlinelogpe.cpp $BOF_FLAGS -D _DEBUG -o bin/inlinelogpe.x86d.o &
-$CC64 -c src/inlinelogpe.cpp $BOF_FLAGS -D _DEBUG -o bin/inlinelogpe.x64d.o &
-$CC32 -c src/inlinelistpe.cpp $BOF_FLAGS -o bin/inlinelistpe.x86.o &
-$CC64 -c src/inlinelistpe.cpp $BOF_FLAGS -o bin/inlinelistpe.x64.o &
-$CC32 -c src/inlinelistpe.cpp $BOF_FLAGS -D _DEBUG -o bin/inlinelistpe.x86d.o &
-$CC64 -c src/inlinelistpe.cpp $BOF_FLAGS -D _DEBUG -o bin/inlinelistpe.x64d.o &
+$CC32 -c src/inlineexecutepe.cc $BOF_FLAGS -o bin/inlineexecutepe.x86.o &
+$CC64 -c src/inlineexecutepe.cc $BOF_FLAGS -o bin/inlineexecutepe.x64.o &
+$CC32 -c src/inlineexecutepe.cc $BOF_FLAGS -D _DEBUG -o bin/inlineexecutepe.x86d.o &
+$CC64 -c src/inlineexecutepe.cc $BOF_FLAGS -D _DEBUG -o bin/inlineexecutepe.x64d.o &
+$CC32 -c src/inlinelogpe.cc $BOF_FLAGS -o bin/inlinelogpe.x86.o &
+$CC64 -c src/inlinelogpe.cc $BOF_FLAGS -o bin/inlinelogpe.x64.o &
+$CC32 -c src/inlinelogpe.cc $BOF_FLAGS -D _DEBUG -o bin/inlinelogpe.x86d.o &
+$CC64 -c src/inlinelogpe.cc $BOF_FLAGS -D _DEBUG -o bin/inlinelogpe.x64d.o &
+$CC32 -c src/inlinelistpe.cc $BOF_FLAGS -o bin/inlinelistpe.x86.o &
+$CC64 -c src/inlinelistpe.cc $BOF_FLAGS -o bin/inlinelistpe.x64.o &
+$CC32 -c src/inlinelistpe.cc $BOF_FLAGS -D _DEBUG -o bin/inlinelistpe.x86d.o &
+$CC64 -c src/inlinelistpe.cc $BOF_FLAGS -D _DEBUG -o bin/inlinelistpe.x64d.o &
 wait
 
 g++ -O2 -std=c++20 tools/fixbof.cc tools/obj.cc -lfmt -otools/fixbof
