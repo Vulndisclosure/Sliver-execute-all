@@ -9,6 +9,8 @@ extern "C" {
 #include "inlinecommon.h"
 // clang-format on
 
+#include <string.h>
+
 #include "ReflectiveLoaderEx.c"
 #include "globalshareddata.cc"
 #include "simplelist1.cc"
@@ -35,10 +37,30 @@ WINBASEAPI NTSTATUS NTAPI NtFlushInstructionCache(HANDLE ProcessHandle,
 #endif
 #endif
 
+#define STARTS_WITH_I(s, prefix) \
+  (_strnicmp((s), xorstr_(prefix), sizeof(prefix) - 1) == 0)
+
+DWORD RvaToFileOffset(PIMAGE_NT_HEADERS ntHeaders, DWORD rva) {
+  PIMAGE_SECTION_HEADER section = IMAGE_FIRST_SECTION(ntHeaders);
+  for (WORD i = 0; i < ntHeaders->FileHeader.NumberOfSections; i++, section++) {
+    if (rva >= section->VirtualAddress &&
+        rva < section->VirtualAddress + section->SizeOfRawData) {
+      return rva - section->VirtualAddress + section->PointerToRawData;
+    }
+  }
+  return 0;
+}
+
 BOOL CheckPEImage(void *peImage, int peImageSize) {
   PBYTE p = (PBYTE)peImage;
   PIMAGE_DOS_HEADER dos = NULL;
   PIMAGE_NT_HEADERS nt = NULL;
+  DWORD rva = 0;
+  PIMAGE_RESOURCE_DIRECTORY res = NULL;
+  PIMAGE_RESOURCE_DIRECTORY_ENTRY rese = NULL;
+  WORD resid = 0;
+  PIMAGE_IMPORT_DESCRIPTOR imp = NULL;
+  LPSTR n = NULL;
 
   // Check if the PE image is empty
   if (!peImage || !peImageSize) {
@@ -68,13 +90,49 @@ BOOL CheckPEImage(void *peImage, int peImageSize) {
     goto invalidMagic;
   }
 
-  // Check the optional header
+  // Check the optional header (TLS and .NET)
   if (nt->OptionalHeader.Magic != IMAGE_NT_OPTIONAL_HDR_MAGIC) {
     goto invalidMagic;
+  }
+  if (nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_TLS]
+          .VirtualAddress) {
+    goto tls;
   }
   if (nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR]
           .VirtualAddress) {
     goto dotnet;
+  }
+
+  // Check the Win32 resources
+  rva = nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_RESOURCE]
+            .VirtualAddress;
+  if (rva) {
+    res = (PIMAGE_RESOURCE_DIRECTORY)(p + RvaToFileOffset(nt, rva));
+    if (res->NumberOfNamedEntries) {
+      goto win32res;
+    }
+    rese = (PIMAGE_RESOURCE_DIRECTORY_ENTRY)(res + 1);
+    for (WORD i = 0; i < res->NumberOfIdEntries; i++) {
+      resid = rese[i].Id;
+      if (resid != (SIZE_T)RT_ICON && resid != (SIZE_T)RT_GROUP_ICON &&
+          resid != (SIZE_T)RT_VERSION && resid != (SIZE_T)RT_MANIFEST) {
+        goto win32res;
+      }
+    }
+  }
+
+  // Check the import table
+  rva = nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT]
+            .VirtualAddress;
+  if (rva) {
+    imp = (PIMAGE_IMPORT_DESCRIPTOR)(p + RvaToFileOffset(nt, rva));
+    for (; imp && imp->Name; imp++) {
+      n = (LPSTR)(p + RvaToFileOffset(nt, imp->Name));
+      if (STARTS_WITH_I(n, "MSVCR") || STARTS_WITH_I(n, "MSVCP") ||
+          STARTS_WITH_I(n, "VCRUNTIME")) {
+        goto vcrt;
+      }
+    }
   }
 
   return TRUE;
@@ -86,10 +144,19 @@ tooSmall:
   PRINTF_ERR("The size of the PE image is too small: %d", peImageSize);
   return FALSE;
 invalidMagic:
-  PRINTF_ERR("Invalid PE image magic.");
+  PRINTF_ERR("Invalid PE headers magic.");
+  return FALSE;
+tls:
+  PRINTF_ERR("Static TLS and TLS callbacks are not supported.");
   return FALSE;
 dotnet:
   PRINTF_ERR("Loading .NET PE image is not supported.");
+  return FALSE;
+win32res:
+  PRINTF_ERR("Win32 resources are not supported.");
+  return FALSE;
+vcrt:
+  PRINTF_ERR("The Visual C++ runtime should be statically linked: %s", n);
   return FALSE;
 }
 
