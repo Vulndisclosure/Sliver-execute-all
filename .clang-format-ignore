@@ -8,5 +8,5 @@ tools/pshpack8.h
 tools/wintypes.h
 
 src/hooks_exe_*.h
-src/xorstr.hpp
 src/stkstr.hpp
+src/xorstr.hpp
