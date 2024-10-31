@@ -51,7 +51,7 @@ DWORD RvaToFileOffset(PIMAGE_NT_HEADERS ntHeaders, DWORD rva) {
   return 0;
 }
 
-BOOL CheckPEImage(void *peImage, int peImageSize) {
+BOOL CheckPEImage(void *peImage, int peImageSize, BOOL force) {
   PBYTE p = (PBYTE)peImage;
   PIMAGE_DOS_HEADER dos = NULL;
   PIMAGE_NT_HEADERS nt = NULL;
@@ -65,6 +65,10 @@ BOOL CheckPEImage(void *peImage, int peImageSize) {
   // Check if the PE image is empty
   if (!peImage || !peImageSize) {
     goto empty;
+  }
+
+  if (force) {
+    return TRUE;
   }
 
   // Check the DOS header
@@ -239,10 +243,11 @@ void ImportHookApis(HookContext *ctx) {
   }
 }
 
-HookResult InlineExecutePE(HookFeatures features, void *stdin_, int stdinSize,
-                           void *peImage, int peImageSize, char *commandLineA,
-                           int commandLineASize, int jobVersion,
-                           HANDLE hCompletionEvent, void **loadedImageBase) {
+HookResult InlineExecutePE(HookFeatures features, bool force, void *stdin_,
+                           int stdinSize, void *peImage, int peImageSize,
+                           char *commandLineA, int commandLineASize,
+                           int jobVersion, HANDLE hCompletionEvent,
+                           void **loadedImageBase) {
   TRACEF("Begin run pe.");
 
   HookContext *hookCtx = NULL;
@@ -268,7 +273,10 @@ HookResult InlineExecutePE(HookFeatures features, void *stdin_, int stdinSize,
    */
 
   TRACEF("1. Validate the PE image");
-  if (!CheckPEImage(peImage, peImageSize)) goto err;
+  if (!CheckPEImage(peImage, peImageSize, force)) goto err;
+  if (force) {
+    PRINTF("WARNING: Without validation, the PE image may not work correctly!");
+  }
 
   /*
    * 2. Prepare hook
@@ -494,6 +502,7 @@ void go(char *argv, int argc) {
   datap parser;
   BeaconDataParse(&parser, argv, argc);
   HookFeatures features = (HookFeatures)BeaconDataInt(&parser);
+  bool force = !!BeaconDataInt(&parser);
   int stdinSize = 0;
   void *stdin_ = BeaconDataExtract(&parser, &stdinSize);
   int peImageSize = 0;
@@ -502,12 +511,12 @@ void go(char *argv, int argc) {
   char *commandLineA = BeaconDataExtract(&parser, &commandLineASize);
   int jobVersion = BeaconDataInt(&parser);
   TRACEF(
-      "Arguments was parsed. (features: %x, stdin: %p (%d bytes), peImage: "
-      "%p (%d bytes), commandLineA: %s (%d bytes), jobVersion: %d)",
-      features, stdin_, stdinSize, peImage, peImageSize, commandLineA,
+      "Arguments was parsed. (features: %x, force: %d, stdin: %p (%d bytes), "
+      "peImage: %p (%d bytes), commandLineA: %s (%d bytes), jobVersion: %d)",
+      features, force, stdin_, stdinSize, peImage, peImageSize, commandLineA,
       commandLineASize, jobVersion);
 
-  InlineExecutePE(features, stdin_, stdinSize, peImage, peImageSize,
+  InlineExecutePE(features, force, stdin_, stdinSize, peImage, peImageSize,
                   commandLineA, commandLineASize, jobVersion, NULL, NULL);
 }
 #endif
