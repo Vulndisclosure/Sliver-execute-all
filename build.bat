@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableDelayedExpansion
 
-set COMMON_FLAGS=/nologo /O1 /Os /GS- /Zc:inline /permissive- /std:c++17 /W3 /D _NO_CRT_STDIO_INLINE /D _CRT_SECURE_NO_WARNINGS /D JM_XORSTR_DISABLE_AVX_INTRINSICS
+set COMMON_FLAGS=/nologo /O1 /Os /Oi /GS- /Zc:inline /permissive- /std:c++17 /W3 /D _NO_CRT_STDIO_INLINE /D _CRT_SECURE_NO_WARNINGS /D JM_XORSTR_DISABLE_AVX_INTRINSICS
 set HOOKS_LINK_FLAGS=/link /NOLOGO /OPT:REF /ENTRY:__HookControlEntry /ORDER:@order.txt /SUBSYSTEM:CONSOLE
 set BOF_FLAGS=%COMMON_FLAGS% /Gy- /GF- /D BOF
 
