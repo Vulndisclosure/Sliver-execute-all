@@ -1,33 +1,67 @@
 #include "globalshareddata.h"
 
-#include <intrin.h>
 #include <memory.h>
-#include <stdlib.h>
+#include <windows.h>
+
+#ifdef _WIN64
+#define GLOBAL_SHARED_DATA_ADDRESS 0x00003242F6070000
+#define GLOBAL_SHARED_DATA_MARKER 0x414A2A2E6294742D
+#define MAX_ATTEMPTS 5
+#else
+#define GLOBAL_SHARED_DATA_ADDRESS 0x3CF30000
+#define GLOBAL_SHARED_DATA_MARKER 0x599077D1
+#define MAX_ATTEMPTS 10
+#endif
+
+/*
+ * IMPORTANT: VirtualAlloc allocates memory at 64KB boundaries even though page
+ * granularity is 4KB!
+ * See also: https://devblogs.microsoft.com/oldnewthing/20031008-00/?p=42223
+ */
+
+static_assert(((SIZE_T)GLOBAL_SHARED_DATA_ADDRESS & 0xFFFF) == 0, "");
+static_assert(sizeof(SIZE_T) + sizeof(GlobalSharedData) < 0x1000, "");
 
 GlobalSharedData *GetGlobalSharedData() {
-  // Create the key of shared data
-  const char time[9] = /*__TIME__*/ "12:34:56";
-  DWORD key = (DWORD)(SIZE_T)NtCurrentProcessId();
-  for (size_t i = 0; i < sizeof(time); i++) {
-    key = _rotr(key, 17);
-    key += time[i];
-  }
-  char keyStr[9] = {};
-  _ultoa(key, keyStr, 16);
-
-  // Get or create shared data
-  GlobalSharedData *data = NULL;
-  char valueStr[17] = {};
-  if (GetEnvironmentVariableA(keyStr, valueStr, sizeof(valueStr))) {
-    SIZE_T value = (SIZE_T)_strtoui64(valueStr, NULL, 16);
-    data = (GlobalSharedData *)(value ^ key);
-  } else {
-    while (!(data = (GlobalSharedData *)malloc(sizeof(GlobalSharedData))));
-    *data = {};
-    SIZE_T value = (SIZE_T)data ^ key;
-    _ui64toa((ULONG64)value, valueStr, 16);
-    SetEnvironmentVariableA(keyStr, valueStr);
+  // Try to find the shared data
+  PVOID address = (PVOID)GLOBAL_SHARED_DATA_ADDRESS;
+  PVOID candidateAddress = NULL;
+  for (int i = 0; i < MAX_ATTEMPTS; i++) {
+    MEMORY_BASIC_INFORMATION mbi;
+    if (!VirtualQuery(address, &mbi, sizeof(mbi))) {
+      return NULL;
+    }
+    if (mbi.State == MEM_COMMIT && mbi.Protect == PAGE_READWRITE &&
+        mbi.Type == MEM_PRIVATE && mbi.RegionSize == 0x1000 &&
+        *(PSIZE_T)mbi.BaseAddress == GLOBAL_SHARED_DATA_MARKER) {
+      return (GlobalSharedData *)((PBYTE)mbi.BaseAddress + sizeof(SIZE_T));
+    }
+    if (!candidateAddress && mbi.State == MEM_FREE) {
+      candidateAddress = mbi.BaseAddress;
+    }
+    address = (PVOID)((SIZE_T)mbi.BaseAddress + 0x10000);
   }
 
-  return data;
+  // Try to allocate the shared data
+  if (!candidateAddress) {
+#ifdef _DEBUG
+    __debugbreak();
+#endif
+    return NULL;
+  }
+  address = VirtualAlloc(candidateAddress, 0x1000, MEM_COMMIT | MEM_RESERVE,
+                         PAGE_READWRITE);
+#ifdef _DEBUG
+  if (address != candidateAddress) {
+    __debugbreak();
+  }
+#endif
+  if (!address) {
+    return NULL;
+  }
+
+  // Initialize the shared data
+  memset(address, 0, sizeof(SIZE_T) + sizeof(GlobalSharedData));
+  *(PSIZE_T)address = GLOBAL_SHARED_DATA_MARKER;
+  return (GlobalSharedData *)((PBYTE)address + sizeof(SIZE_T));
 }
