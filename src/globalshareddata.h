@@ -1,7 +1,7 @@
 #pragma once
 #include <windows.h>
 
-#include "hookspub.h"
+#include "hooks/hookspub.h"
 
 /*==============================================================================
  * Helpers
@@ -18,19 +18,11 @@
 #define LoadedPEImageMax 128
 
 typedef struct {
-  PVOID ImageBase;
-  HookContext *HookContext;
-  volatile LONG HookContextLock;
-  BOOL IsRunning;
-  PVOID JobList;
-  int JobId;
-  HookOutput *Output;
-} LoadedPEImage;
-
-typedef struct {
   LoadedPEImage PEImages[LoadedPEImageMax];
   PVOID LastImageBase;
 #ifndef _WIN64
   PVOID *SEH_ImageBaseList;
 #endif
 } GlobalSharedData;
+
+GlobalSharedData *GetGlobalSharedData();

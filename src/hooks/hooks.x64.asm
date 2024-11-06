@@ -1,9 +1,6 @@
-PUBLIC ctx
 PUBLIC VirtualFreeAndExitThread
 
 .CODE
-
-ctx DQ -1
 
 MEM_RELEASE equ 8000h
 

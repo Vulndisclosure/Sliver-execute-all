@@ -364,7 +364,7 @@ FodyWeavers.xsd
 
 .vscode
 bin
-hooks_*_exe.h
+hooks_*.h
 !hooks.*.obj
 !tools/link/*/
 !tools/link/*/**

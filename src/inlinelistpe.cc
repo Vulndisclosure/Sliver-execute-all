@@ -1,9 +1,3 @@
-#ifdef _DEBUG
-#define xorstr_(s) s
-#else
-#include "xorstr.hpp"
-#endif
-
 extern "C" {
 // clang-format off
 #include "inlinecommon.h"
@@ -24,19 +18,6 @@ void InlineListPE() {
       continue;
     }
 
-    // Copy hook context
-    BOOL hasCtx = FALSE;
-    HookFeatures features = (HookFeatures)0;
-    char *commandLineA = NULL;
-    SpinLock(peImage->HookContextLock, {
-      HookContext *ctx = peImage->HookContext;
-      if (ctx) {
-        hasCtx = TRUE;
-        features = ctx->Features;
-        if (ctx->CommandLineA) commandLineA = _strdup(ctx->CommandLineA);
-      }
-    });
-
     // Count the number of logs
     int logs = 0;
     SpinLock(peImage->Output->LogLock, {
@@ -45,20 +26,12 @@ void InlineListPE() {
     });
 
     // Print the information
-    if (hasCtx) {
-      PRINTF(
-          "%d: ImageBase: %p, Features: %x, Available logs: %d, IsRunning: %d, "
-          "CommandLine: %s, JobId: %d",
-          i, peImage->ImageBase, features, logs, peImage->IsRunning,
-          commandLineA, peImage->JobId);
-    } else {
-      PRINTF(
-          "%d: ImageBase: %p (unloaded), Available logs: %d, IsRunning: %d, "
-          "JobId: %d",
-          i, peImage->ImageBase, logs, peImage->IsRunning, peImage->JobId);
-    }
-
-    if (commandLineA) free(commandLineA);
+    const char *unloaded = !peImage->IsRunning ? " (unloaded)" : "";
+    PRINTF(
+        "%d: ImageBase: %p%s, Available logs: %d, IsRunning: %d, CommandLine: "
+        "%s, JobId: %d",
+        i, peImage->ImageBase, unloaded, logs, peImage->IsRunning,
+        peImage->CommandLineA, peImage->JobId);
   }
 
   TRACEF("End list loaded PE images.");

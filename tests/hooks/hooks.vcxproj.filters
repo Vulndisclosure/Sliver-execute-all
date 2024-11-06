@@ -18,48 +18,36 @@
     <ClCompile Include="dllmain.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\hooks.cc">
+    <ClCompile Include="..\..\src\hooks\hooks.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\pipeserver.cc">
+    <ClCompile Include="..\..\src\hooks\pipeserver.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\simplelist2.cc">
+    <ClCompile Include="..\..\src\hooks\simplelist1.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\simplelist1.cc">
+    <ClCompile Include="..\..\src\hooks\simplelist2.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\src\hooks.h">
+    <ClInclude Include="..\..\src\hooks\hooks.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\hookspub.h">
+    <ClInclude Include="..\..\src\hooks\hookspub.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\pipeserver.h">
+    <ClInclude Include="..\..\src\hooks\pipeserver.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\simplelist.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\xorstr.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\stkstr.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\globalshareddata.h">
+    <ClInclude Include="..\..\src\hooks\simplelist.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\src\hooks.x86.asm">
+    <MASM Include="..\..\src\hooks\hooks.x64.asm">
       <Filter>Source Files</Filter>
-    </None>
-    <None Include="..\..\src\hooks.x64.asm">
-      <Filter>Source Files</Filter>
-    </None>
+    </MASM>
   </ItemGroup>
 </Project>

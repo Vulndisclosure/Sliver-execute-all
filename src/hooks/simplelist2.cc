@@ -29,9 +29,3 @@ void *SimpleListAddBuffer(SimpleList *list, void *value, int size) {
 
   return dest;
 }
-
-#define SimpleListAdd(list, type, value)            \
-  do {                                              \
-    type __t = (value);                             \
-    SimpleListAddBuffer((list), &__t, sizeof(__t)); \
-  } while (0)

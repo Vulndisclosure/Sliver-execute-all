@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <windows.h>
 
-#include "hookspub.h"
+#include "hooks/hookspub.h"
 
 /*==============================================================================
  * Import
@@ -90,9 +90,8 @@ out:
 #define _BeaconPrint(a, b, ...) BeaconPrintf(a, b, ##__VA_ARGS__)
 #endif
 
-#define PRINTF(a, ...) _BeaconPrint(CALLBACK_OUTPUT, xorstr_(a), ##__VA_ARGS__)
-#define PRINTF_ERR(a, ...) \
-  _BeaconPrint(CALLBACK_ERROR, xorstr_(a), ##__VA_ARGS__)
+#define PRINTF(a, ...) _BeaconPrint(CALLBACK_OUTPUT, a, ##__VA_ARGS__)
+#define PRINTF_ERR(a, ...) _BeaconPrint(CALLBACK_ERROR, a, ##__VA_ARGS__)
 
 /*==============================================================================
  * Trace
@@ -103,8 +102,7 @@ out:
 #endif
 
 #ifdef _TRACE
-#define TRACEF(a, ...) \
-  _BeaconPrint(CALLBACK_OUTPUT, xorstr_("[DBG] " a), ##__VA_ARGS__)
+#define TRACEF(a, ...) _BeaconPrint(CALLBACK_OUTPUT, "[DBG] " a, ##__VA_ARGS__)
 #else
 #define TRACEF(a, ...)
 #endif

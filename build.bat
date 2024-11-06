@@ -1,28 +1,30 @@
 @echo off
 setlocal EnableDelayedExpansion
 
-set COMMON_FLAGS=/nologo /O1 /Os /Oi /GS- /Zc:inline /permissive- /std:c++17 /W3 /D _NO_CRT_STDIO_INLINE /D _CRT_SECURE_NO_WARNINGS /D JM_XORSTR_DISABLE_AVX_INTRINSICS
-set HOOKS_LINK_FLAGS=/link /NOLOGO /OPT:REF /ENTRY:__HookControlEntry /ORDER:@order.txt /SUBSYSTEM:CONSOLE
-set BOF_FLAGS=%COMMON_FLAGS% /Gy- /GF- /D BOF
+set CC_FLAGS=/nologo /O1 /Os /Oi /GS- /Zc:inline /permissive- /W3 /D _NO_CRT_STDIO_INLINE /D _CRT_SECURE_NO_WARNINGS
+set BOF_FLAGS=%CC_FLAGS% /Gy- /GF- /D BOF
+set HOOKS_LIB_FLAGS=kernel32.lib
+set HOOKS_LINK_FLAGS=%HOOKS_LIB_FLAGS% libucrt.lib /link /NOLOGO /LIBPATH:tools\link /OPT:REF /OPT:ICF /EMITPOGOPHASEINFO /ALIGN:16 /ENTRY:HookControlEntry /SUBSYSTEM:CONSOLE /BASE:0 /IGNORE:4108,4254,4281
+set HOOKS_LINK_FLAGS32=msvcrt.x86.lib %HOOKS_LINK_FLAGS%
+set HOOKS_LINK_FLAGS64=msvcrt.x64.lib %HOOKS_LINK_FLAGS%
 
 if not exist "bin" mkdir "bin"
 
 call :SETUP_ENV
 
 call :SET_ENV MSVC_X86
-echo __HookControlEntry > order.txt
-cl src\hooks.cc src\hooks.x86.obj %COMMON_FLAGS% /Fe"bin\hooks.x86.exe" %HOOKS_LINK_FLAGS%
-cl src\hooks.cc src\hooks.x86.obj %COMMON_FLAGS% /D _DEBUG /Fe"bin\hooks.x86d.exe" %HOOKS_LINK_FLAGS%
+cl src\hooks\hooks.cc src\hooks\pipeserver.cc src\hooks\simplelist1.cc src\hooks\simplelist2.cc %CC_FLAGS% /Fe"bin\hooks.x86.exe" %HOOKS_LINK_FLAGS32%
+cl src\hooks\hooks.cc src\hooks\pipeserver.cc src\hooks\simplelist1.cc src\hooks\simplelist2.cc %CC_FLAGS% /D _DEBUG /Fe"bin\hooks.x86d.exe" %HOOKS_LINK_FLAGS32%
 
 call :SET_ENV MSVC_X64
-cl src\hooks.cc src\hooks.x64.obj %COMMON_FLAGS% /Fe"bin\hooks.x64.exe" %HOOKS_LINK_FLAGS%
-cl src\hooks.cc src\hooks.x64.obj %COMMON_FLAGS% /D _DEBUG /Fe"bin\hooks.x64d.exe" %HOOKS_LINK_FLAGS%
-del order.txt
+ml64 /nologo /c src/hooks/hooks.x64.asm
+cl src\hooks\hooks.cc src\hooks\pipeserver.cc src\hooks\simplelist1.cc src\hooks\simplelist2.cc hooks.x64.obj %CC_FLAGS% /Fe"bin\hooks.x64.exe" %HOOKS_LINK_FLAGS64%
+cl src\hooks\hooks.cc src\hooks\pipeserver.cc src\hooks\simplelist1.cc src\hooks\simplelist2.cc hooks.x64.obj %CC_FLAGS% /D _DEBUG /Fe"bin\hooks.x64d.exe" %HOOKS_LINK_FLAGS64%
 
-cl /nologo tools\exe2h.c /Fe"tools\exe2h.exe"
-tools\exe2h.exe bin\hooks.x86.exe bin\hooks.x86d.exe bin\hooks.x64.exe bin\hooks.x64d.exe
-move hooks_*_exe.h src
-del tools\exe2h.exe exe2h.obj bin\hooks.*.exe hooks.obj
+cl /nologo tools\c2sc.c /Fe"tools\c2sc.exe"
+tools\c2sc.exe hs bin\hooks.x86.exe bin\hooks.x86d.exe bin\hooks.x64.exe bin\hooks.x64d.exe
+move hooks_*.h src\hooks
+del tools\c2sc.exe c2sc.obj bin\hooks.*.exe hooks.obj pipeserver.obj simplelist1.obj simplelist2.obj hooks.x64.obj
 
 call :SET_ENV MSVC_X86
 cl /c src\inlineexecutepe.cc %BOF_FLAGS% /Fo"bin\inlineexecutepe.x86.o"

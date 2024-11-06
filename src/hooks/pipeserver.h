@@ -11,3 +11,8 @@ typedef struct {
   volatile BOOL IsStopping;
   HANDLE StoppedEvent;
 } PipeServer;
+
+BOOL CreateReadPipeServer(PipeServer *pipe);
+void CloseReadPipeServer(PipeServer *pipe, BOOL freeBuffer);
+BOOL CreateWritePipeServer(PipeServer *pipe, void *buffer, int size);
+void CloseWritePipeServer(PipeServer *pipe);

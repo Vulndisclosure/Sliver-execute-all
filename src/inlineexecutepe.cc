@@ -1,9 +1,3 @@
-#ifdef _DEBUG
-#define xorstr_(s) s
-#else
-#include "xorstr.hpp"
-#endif
-
 extern "C" {
 // clang-format off
 #include "inlinecommon.h"
@@ -12,8 +6,12 @@ extern "C" {
 #include <string.h>
 
 #include "ReflectiveLoaderEx.c"
+#include "c2scstartup.cc"
 #include "globalshareddata.cc"
-#include "simplelist1.cc"
+#include "hooks/simplelist1.cc"
+#include "jobs1.cc"
+#include "jobs2.cc"
+#include "seh.cc"
 
 WINBASEAPI NTSTATUS NTAPI NtFlushInstructionCache(HANDLE ProcessHandle,
                                                   PVOID BaseAddress,
@@ -21,24 +19,28 @@ WINBASEAPI NTSTATUS NTAPI NtFlushInstructionCache(HANDLE ProcessHandle,
 
 #ifdef _WIN64
 #ifdef _DEBUG
-#include "hooks_x64d_exe.h"
-#define HOOKS_EXE HOOKS_X64D_EXE
+#include "hooks/hooks_x64d.h"
+#define HOOKS HOOKS_X64D
+#define HOOKS_EXTRA HOOKS_X64D_EXTRA
 #else
-#include "hooks_x64_exe.h"
-#define HOOKS_EXE HOOKS_X64_EXE
+#include "hooks/hooks_x64.h"
+#define HOOKS HOOKS_X64
+#define HOOKS_EXTRA HOOKS_X64_EXTRA
 #endif
 #else
 #ifdef _DEBUG
-#include "hooks_x86d_exe.h"
-#define HOOKS_EXE HOOKS_X86D_EXE
+#include "hooks/hooks_x86d.h"
+#define HOOKS HOOKS_X86D
+#define HOOKS_EXTRA HOOKS_X86D_EXTRA
 #else
-#include "hooks_x86_exe.h"
-#define HOOKS_EXE HOOKS_X86_EXE
+#include "hooks/hooks_x86.h"
+#define HOOKS HOOKS_X86
+#define HOOKS_EXTRA HOOKS_X86_EXTRA
 #endif
 #endif
 
 #define STARTS_WITH_I(s, prefix) \
-  (_strnicmp((s), xorstr_(prefix), sizeof(prefix) - 1) == 0)
+  (_strnicmp((s), prefix, sizeof(prefix) - 1) == 0)
 
 DWORD RvaToFileOffset(PIMAGE_NT_HEADERS ntHeaders, DWORD rva) {
   PIMAGE_SECTION_HEADER section = IMAGE_FIRST_SECTION(ntHeaders);
@@ -164,255 +166,120 @@ vcrt:
   return FALSE;
 }
 
-// TODO: Add proxy dll loading https://github.com/kleiton0x00/Proxy-DLL-Loads
-HMODULE GetOrLoadDll(LPCSTR dllName) {
-  HMODULE handle = GetModuleHandleA(dllName);
-  if (handle) {
-    return handle;
+BOOL ToWideString(LPSTR s, LPWSTR *ws) {
+  int size = (int)strlen(s) * 2 + 2;
+  *ws = (LPWSTR)malloc(size);
+  if (!*ws) {
+    PRINTF_ERR("Failed to allocate wide string.");
+    return FALSE;
   }
-  handle = LoadLibraryA(dllName);
-  TRACEF("LoadLibraryA(%s): %p", dllName, handle);
-  return handle;
+  if (!toWideChar(s, *ws, size)) {
+    PRINTF_ERR("Failed to convert ansi string to wide string.");
+    return FALSE;
+  }
+  return TRUE;
 }
 
-#define GetOrLoadDll2(m) GetOrLoadDll(xorstr_(m))
-#define GetProcAddress2(m, f) ((PVOID)GetProcAddress(m, xorstr_(f)))
-
-#include "jobs1.cc"
-#include "jobs2.cc"
-#include "seh.cc"
-
-void ImportHookApis(HookContext *ctx) {
-  // clang-format off
-  HMODULE kernel32                        = GetOrLoadDll2("kernel32.dll");
-  ctx->_AddVectoredContinueHandler        = GetProcAddress2(kernel32, "AddVectoredContinueHandler");
-  ctx->_AddVectoredExceptionHandler       = GetProcAddress2(kernel32, "AddVectoredExceptionHandler");
-  ctx->_CloseHandle                       = GetProcAddress2(kernel32, "CloseHandle");
-  ctx->_CreateEventA                      = GetProcAddress2(kernel32, "CreateEventA");
-  ctx->_CreatePipe                        = GetProcAddress2(kernel32, "CreatePipe");
-  ctx->_CreateThread                      = GetProcAddress2(kernel32, "CreateThread");
-  ctx->_ExitThread                        = GetProcAddress2(kernel32, "ExitThread");
-  ctx->_GetModuleHandleA                  = GetProcAddress2(kernel32, "GetModuleHandleA");
-  ctx->_GetProcAddress                    = GetProcAddress2(kernel32, "GetProcAddress");
-  ctx->_GetStdHandle                      = GetProcAddress2(kernel32, "GetStdHandle");
-  ctx->_GetThreadId                       = GetProcAddress2(kernel32, "GetThreadId");
-  ctx->_MultiByteToWideChar               = GetProcAddress2(kernel32, "MultiByteToWideChar");
-  ctx->_OpenThread                        = GetProcAddress2(kernel32, "OpenThread");
-  ctx->_Process32NextW                    = GetProcAddress2(kernel32, "Process32NextW");
-  ctx->_ReadFile                          = GetProcAddress2(kernel32, "ReadFile");
-  ctx->_RemoveVectoredContinueHandler     = GetProcAddress2(kernel32, "RemoveVectoredContinueHandler");
-  ctx->_RemoveVectoredExceptionHandler    = GetProcAddress2(kernel32, "RemoveVectoredExceptionHandler");
-  ctx->_SetEvent                          = GetProcAddress2(kernel32, "SetEvent");
-  ctx->_SetUnhandledExceptionFilter       = GetProcAddress2(kernel32, "SetUnhandledExceptionFilter");
-  ctx->_Sleep                             = GetProcAddress2(kernel32, "Sleep");
-  ctx->_TerminateThread                   = GetProcAddress2(kernel32, "TerminateThread");
-  ctx->_TlsAlloc                          = GetProcAddress2(kernel32, "TlsAlloc");
-  ctx->_TlsFree                           = GetProcAddress2(kernel32, "TlsFree");
-  ctx->_VirtualAlloc                      = GetProcAddress2(kernel32, "VirtualAlloc");
-  ctx->_VirtualFree                       = GetProcAddress2(kernel32, "VirtualFree");
-  ctx->_WaitForSingleObject               = GetProcAddress2(kernel32, "WaitForSingleObject");
-  ctx->_WideCharToMultiByte               = GetProcAddress2(kernel32, "WideCharToMultiByte");
-  ctx->_WriteFile                         = GetProcAddress2(kernel32, "WriteFile");
-  HMODULE msvcrt                          = GetOrLoadDll2("msvcrt.dll");
-  ctx->__beginthread                      = GetProcAddress2(msvcrt, "_beginthread");
-  ctx->__vscprintf                        = GetProcAddress2(msvcrt, "_vscprintf");
-  ctx->_free                              = GetProcAddress2(msvcrt, "free");
-  ctx->_malloc                            = GetProcAddress2(msvcrt, "malloc");
-  ctx->_memcpy                            = GetProcAddress2(msvcrt, "memcpy");
-  ctx->_realloc                           = GetProcAddress2(msvcrt, "realloc");
-  ctx->_vsprintf_s                        = GetProcAddress2(msvcrt, "vsprintf_s");
-#ifdef _WIN64
-  ctx->_RtlDeleteFunctionTable            = GetProcAddress2(kernel32, "RtlDeleteFunctionTable");
-#endif
-#ifdef _DEBUG
-  ctx->_OutputDebugStringA                = GetProcAddress2(kernel32, "OutputDebugStringA");
-#endif
-#ifndef BOF
-  ctx->_free                              = (PVOID)free;
-  ctx->_malloc                            = (PVOID)malloc;
-  ctx->_realloc                           = (PVOID)realloc;
-#endif
-  // clang-format on
-  PVOID *apis = &ctx->_AddVectoredContinueHandler;
-  int apiCount = (int)(&ctx->MyGetProcAddress - apis);
-  for (int i = 0; i < apiCount; i++) {
-    TRACEF("Api[%d]: %p", i, apis[i]);
-    if (!apis[i]) {
-      PRINTF_ERR("Api[%d] is NULL.", i);
-    }
+void PrintHookResultError(HookResult result, HookControl id) {
+  switch (result) {
+    case HookResultErrorInvalidArgument:
+      PRINTF_ERR("Invalid argument for HookControlEntry(%d).", id);
+      break;
+    case HookResultErrorCreatePipeServer:
+      PRINTF_ERR("Failed to create pipe server.");
+      break;
+    case HookResultErrorCreateSimpleList:
+      PRINTF_ERR("Failed to create simple list.");
+      break;
+    case HookResultErrorGetModuleHandle:
+      PRINTF_ERR("Failed to get kernel32.dll/msvcrt.dll image base.");
+      break;
+    case HookResultErrorStartNewThread:
+      PRINTF_ERR("Failed to create new thread to run exe entry-point.");
+      break;
+    default:
+      PRINTF_ERR("Failed to call HookControlEntry(%d): %x", id, result);
+      break;
   }
 }
 
-HookResult InlineExecutePE(HookFeatures features, bool force, void *stdin_,
-                           int stdinSize, void *peImage, int peImageSize,
-                           char *commandLineA, int commandLineASize,
-                           int jobVersion, HANDLE hCompletionEvent,
-                           void **loadedImageBase) {
-  TRACEF("Begin run pe.");
-
-  HookContext *hookCtx = NULL;
-  PVOID hookBase = NULL;
-  HookControlEntryProc hookControlEntry = NULL;
-  WCHAR *commandLineW = NULL;
-  int commandLineWSize = 0;
-  int outputType = 0;
-  JobEntry **jobList = NULL;
-  int jobId = 0;
-  HANDLE hJobWritePipe = NULL;
-  HookOutput *output = NULL;
-  HookResult result = HookResultSuccess;
-  DWORD imageSize = 0;
-  PVOID imageBase = NULL;
-  PVOID entryPoint = NULL;
-  GlobalSharedData *sharedData = NULL;
-  int index = 0;
-  LoadedPEImage *loadedPEImage = NULL;
-
-  /*
-   * 1. Validate the PE image
-   */
-
-  TRACEF("1. Validate the PE image");
-  if (!CheckPEImage(peImage, peImageSize, force)) goto err;
-  if (force) {
-    PRINTF("WARNING: Without validation, the PE image may not work correctly!");
-  }
-
-  /*
-   * 2. Prepare hook
-   */
-
-  TRACEF("2. Prepare hook");
-
-  hookCtx = (HookContext *)malloc(sizeof(HookContext));
-  if (!hookCtx) {
-    PRINTF_ERR("Failed to allocate hooks context.");
-    goto err;
-  }
-  memset(hookCtx, 0, sizeof(HookContext));
-  hookCtx->Features = features;
-  hookCtx->CompletionEventHandle = hCompletionEvent;
-  ImportHookApis(hookCtx);
+BOOL LoadHook(PVOID *hookBase, HookControlEntryProc *hookControlEntry) {
 #ifdef HOOKS_DLL
-  hookControlEntry = (HookControlEntryProc)GetProcAddress2(
-      GetOrLoadDll2("hooks.dll"), "__HookControlEntry");
+  *hookBase = NULL;
+  *hookControlEntry = (HookControlEntryProc)GetProcAddress(
+      LoadLibraryA("hooks.dll"), "HookControlEntry");
 #else
-  hookBase = VirtualAlloc(NULL, sizeof(HOOKS_EXE), MEM_RESERVE | MEM_COMMIT,
-                          PAGE_EXECUTE_READWRITE);
+  *hookBase = VirtualAlloc(NULL, sizeof(HOOKS), MEM_RESERVE | MEM_COMMIT,
+                           PAGE_EXECUTE_READWRITE);
   // TODO: allocate then set RWX, add padding before and after code.
-  if (!hookBase) {
+  if (!*hookBase) {
     PRINTF_ERR("Failed to allocate hooks code.");
-    goto err;
+    return false;
   }
-  memcpy(hookBase, HOOKS_EXE, sizeof(HOOKS_EXE));
-  hookCtx->HookBase = hookBase;
-  hookControlEntry = (HookControlEntryProc)hookBase;
+  memcpy(*hookBase, HOOKS, sizeof(HOOKS));
+  C2SCInitialize(*hookBase, HOOKS_EXTRA);
+  *hookControlEntry = (HookControlEntryProc)*hookBase;
 #endif
-  if ((hookCtx->Features & HookFeatureCommandLine) && commandLineA) {
-    commandLineWSize = commandLineASize * 2;
-    commandLineW = (WCHAR *)malloc(commandLineWSize);
-    if (!commandLineW ||
-        !toWideChar(commandLineA, commandLineW, commandLineWSize)) {
-      PRINTF_ERR("Failed to allocate commandLineW.");
-      goto err;
-    }
-    commandLineWSize = 0;
-    while (commandLineW[commandLineWSize++] != L'\0');
-    commandLineWSize *= 2;
-  } else {
-    commandLineWSize = 0;
-    commandLineW = NULL;
+  return true;
+}
+
+void UnloadHook(PVOID hookBase) {
+#ifdef HOOKS_DLL
+  // Nothing to do
+#else
+  if (hookBase) VirtualFree(hookBase, 0, MEM_RELEASE);
+#endif
+}
+
+BOOL CreateOutput(HookOutput **output, BOOL isCpp, int jobVersion,
+                  const char *jobDescription, JobEntry ***jobList, int *jobId) {
+  HookOutput *o = (HookOutput *)calloc(1, sizeof(HookOutput));
+  if (!o) {
+    PRINTF_ERR("Failed to allocate hook output.");
+    return FALSE;
   }
-
-  /*
-   * 3. Initialize hook
-   */
-
-  TRACEF("3. Initialize hook");
-
-  outputType =
-      (features & HookFeatureCpp) ? CALLBACK_OUTPUT : CALLBACK_OUTPUT_UTF8;
+  *output = o;
+  o->Type = isCpp ? CALLBACK_OUTPUT : CALLBACK_OUTPUT_UTF8;
   if (jobVersion) {
-    if (SimpleAddJob(jobVersion, outputType, commandLineA, &jobList, &jobId,
-                     &hJobWritePipe)) {
-      hookCtx->JobOutputWriteHandle = hJobWritePipe;
-      hookCtx->JobOutputLock = 0;
-      TRACEF("Job %d was added. Never use 'jobkill' for this PE image!", jobId);
+    if (SimpleAddJob(jobVersion, o->Type, jobDescription, jobList, jobId,
+                     &o->JobOutputWriteHandle)) {
+      TRACEF("Job %d was added. Never use 'jobkill' for this PE image!",
+             *jobId);
     } else {
       PRINTF_ERR(
           "Failed to add job. Fall back to normal async log. Use "
           "'inline-log-pe' to fetch logs manually.");
     }
   }
-
-  output = (HookOutput *)malloc(sizeof(HookOutput));
-  if (!output) {
-    PRINTF_ERR("Failed to allocate hook output.");
-    goto err;
-  }
-  memset(output, 0, sizeof(HookOutput));
-  if (!SimpleListAlloc(&output->Logs, sizeof(LogEntry) * 64)) {
+  if (!SimpleListAlloc(&o->Logs, sizeof(LogEntry) * 64)) {
     PRINTF_ERR("Failed to allocate hook log list.");
-    goto err;
+    return FALSE;
   }
-  output->Type = outputType;
-  hookCtx->Output = output;
+  return TRUE;
+}
 
-  result = hookControlEntry(HookControlCreate, hookCtx, stdin_, stdinSize,
-                            commandLineA, commandLineASize, commandLineW,
-                            commandLineWSize);
-  switch (result) {
-    case HookResultSuccess:
-      break;
-    case HookResultErrorCreateCommandLine:
-      PRINTF_ERR("Failed to allocate command-line.");
-      goto err;
-    case HookResultErrorCreatePipeServers:
-      PRINTF_ERR("Failed to create pipe servers to redirect stdio.");
-      goto err;
-    case HookResultErrorCreateNewThreadList:
-      PRINTF_ERR("Failed to allocate new thread list.");
-      goto err;
-    case HookResultErrorCreateExceptionHandlerList:
-      PRINTF_ERR("Failed to allocate exception handler list.");
-      goto err;
-    case HookResultErrorCreateMemoryList:
-      PRINTF_ERR("Failed to allocate memory list.");
-      goto err;
-    case HookResultErrorCreateTlsList:
-      PRINTF_ERR("Failed to allocate tls list.");
-      goto err;
-    case HookResultErrorCreateKernel32Base:
-      PRINTF_ERR("Failed to get kernel32.dll image base.");
-      goto err;
-    default:
-      PRINTF_ERR("Failed to call HookControlEntry(HookControlCreate): %x",
-                 result);
-      goto err;
+void FreeOutput(HookOutput *output, JobEntry **jobList, int jobId) {
+  if (output) {
+    SimpleListForEach(&output->Logs, LogEntry, log, free(log->Text));
+    SimpleListFree(&output->Logs);
+    free(output);
   }
+  if (jobList) SimpleRemoveJob(jobList, jobId);
+}
 
-  /*
-   * 4. Load PE image from memory
-   */
-
-  TRACEF("4. Load PE image from memory");
-
-  imageSize = ((PIMAGE_NT_HEADERS)((PBYTE)peImage +
-                                   ((PIMAGE_DOS_HEADER)peImage)->e_lfanew))
-                  ->OptionalHeader.SizeOfImage;
-  imageBase = peImage;
-  entryPoint = ReflectiveLoaderEx(
-      &imageBase, (PVOID)LoadLibraryA, hookCtx->MyGetProcAddress,
-      (PVOID)VirtualAlloc, (PVOID)NtFlushInstructionCache,
-      hookCtx->Features & HookFeatureCppSEH);
-  hookCtx->ImageBase = imageBase;
+BOOL LoadPEImage(PVOID peImage, PVOID myGetProcAddress, BOOL enableSEH,
+                 PVOID *imageBase, PVOID *entryPoint, PVOID *seh) {
+  DWORD imageSize =
+      ((PIMAGE_NT_HEADERS)((PBYTE)peImage +
+                           ((PIMAGE_DOS_HEADER)peImage)->e_lfanew))
+          ->OptionalHeader.SizeOfImage;
+  *imageBase = peImage;
+  *entryPoint = ReflectiveLoaderEx(imageBase, (PVOID)LoadLibraryA,
+                                   myGetProcAddress, (PVOID)VirtualAlloc,
+                                   (PVOID)NtFlushInstructionCache, enableSEH);
   TRACEF("ReflectiveLoaderEx done.");
-  if (hookCtx->Features & HookFeatureCppSEH) {
-#ifdef _WIN64
-    hookCtx->FunctionTable = EnableSEH(imageBase);
-#else
-    hookCtx->SEH_ImageBase = EnableSEH(imageBase);
-#endif
+  if (enableSEH) {
+    *seh = EnableSEH(*imageBase);
     TRACEF("SEH was enabled.");
     // Zero PE headers
     memset(peImage, 0,
@@ -421,73 +288,167 @@ HookResult InlineExecutePE(HookFeatures features, bool force, void *stdin_,
                ->OptionalHeader.SizeOfHeaders);
   }
   PRINTF("PE image was loaded. (imageBase: %p, imageSize: %x, entryPoint: %p)",
-         imageBase, (UINT)imageSize, entryPoint);
-  sharedData = GetGlobalSharedData();
-  for (index = 0; index < LoadedPEImageMax; index++) {
+         *imageBase, (UINT)imageSize, *entryPoint);
+  return TRUE;
+}
+
+void UnloadPEImage(PVOID imageBase, PVOID seh, BOOL enableSEH) {
+  if (imageBase) {
+    if (enableSEH) {
+#ifdef _WIN64
+      RtlDeleteFunctionTable((PRUNTIME_FUNCTION)seh);
+#else
+      *(PVOID *)seh = NULL;
+#endif
+    }
+    VirtualFree(imageBase, 0, MEM_RELEASE);
+  }
+}
+
+BOOL SetLoadedPEImage(LoadedPEImage **peImage, PVOID imageBase,
+                      JobEntry **jobList, int jobId, HookOutput *output,
+                      LPSTR commandLineA) {
+  GlobalSharedData *sharedData = GetGlobalSharedData();
+  int index = 0;
+  for (; index < LoadedPEImageMax; index++) {
     if (!sharedData->PEImages[index].ImageBase) {
       break;
     }
   }
   if (index == LoadedPEImageMax) {
     PRINTF_ERR("Too many loaded PE images. Can't add to PEImages.");
-    goto err;
+    return FALSE;
   }
-  loadedPEImage = &sharedData->PEImages[index];
-  loadedPEImage->ImageBase = imageBase;
-  loadedPEImage->HookContext = hookCtx;
-  loadedPEImage->IsRunning = FALSE;
-  loadedPEImage->JobList = jobList;
-  loadedPEImage->JobId = jobId;
-  loadedPEImage->Output = output;
+  LoadedPEImage *p = *peImage = &sharedData->PEImages[index];
+  p->ImageBase = imageBase;
+  p->IsRunning = FALSE;
+  p->JobList = jobList;
+  p->JobId = jobId;
+  p->Output = output;
+  p->CommandLineA = _strdup(commandLineA);
+  if (!p->CommandLineA) {
+    PRINTF_ERR("Failed to duplicate command-line string.");
+    return FALSE;
+  }
   sharedData->LastImageBase = imageBase;
-  hookCtx->PEImage = loadedPEImage;
-  if (loadedImageBase) *loadedImageBase = imageBase;
   TRACEF("PE image %p was added to global shared data index %d.", imageBase,
          index);
+  return TRUE;
+}
+
+void UnsetLoadedPEImage(LoadedPEImage *peImage) {
+  if (peImage->CommandLineA) {
+    free(peImage->CommandLineA);
+  }
+  *peImage = {};
+}
+
+HookResult InlineExecutePE(HookFeatures features, bool force, void *stdin_,
+                           int stdinSize, void *peImage, int peImageSize,
+                           char *commandLineA, int jobVersion,
+                           void *hCompletionEvent, void **loadedImageBase) {
+  TRACEF("Begin run pe.");
+
+  // Load hook
+  PVOID hookBase = NULL;
+  HookControlEntryProc HookControlEntry = NULL;
+
+  // Initialize hook
+  LPWSTR commandLineW = NULL;  // temp
+  HookOutput *output = NULL;   // owned by LoadedPEImage
+  JobEntry **jobList = NULL;
+  int jobId = 0;
+  PVOID myGetProcAddress = NULL;
+  HookResult result = HookResultErrorInvalidControl;
+
+  // Load PE image
+  PVOID imageBase = NULL;
+  PVOID entryPoint = NULL;
+  PVOID seh = NULL;
+
+  // Gloabl shared data
+  LoadedPEImage *loadedPEImage = NULL;
 
   /*
-   * 5. Call exe entrypoint
+   * 1. Validate the PE image
    */
 
-  TRACEF("5. Call exe entrypoint");
+  TRACEF("1. Validate the PE image");
 
-  result = hookControlEntry(HookControlStart, entryPoint);
-  switch (result) {
-    case HookResultSuccess:
-      break;
-    case HookResultErrorStartNewThread:
-      PRINTF_ERR("Failed to create new thread to run exe entry-point.");
-      goto err;
-    default:
-      PRINTF_ERR("Failed to call HookControlEntry(HookControlCreate): %x",
-                 result);
-      goto err;
+  if (!CheckPEImage(peImage, peImageSize, force)) goto err;
+  if (force) {
+    PRINTF("WARNING: Without validation, the PE image may not work correctly!");
   }
-  loadedPEImage->IsRunning = TRUE;
+
+  /*
+   * 2. Load hook
+   */
+
+  TRACEF("2. Load hook");
+
+  if (!LoadHook(&hookBase, &HookControlEntry)) goto err;
+
+  /*
+   * 3. Initialize hook
+   */
+
+  TRACEF("3. Initialize hook");
+
+  if (!ToWideString(commandLineA, &commandLineW)) goto err;
+  if (!CreateOutput(&output, features & HookFeatureCpp, jobVersion,
+                    commandLineA, &jobList, &jobId))
+    goto err;
+  result =
+      HookControlEntry(HookControlCreate, features, stdin_, stdinSize,
+                       commandLineA, commandLineW, output, &myGetProcAddress);
+  if (result != HookResultSuccess) {
+    PrintHookResultError(result, HookControlCreate);
+    goto err;
+  }
+
+  /*
+   * 4. Load PE image from memory
+   */
+
+  TRACEF("4. Load PE image from memory");
+
+  if (!LoadPEImage(peImage, myGetProcAddress, features & HookFeatureCppSEH,
+                   &imageBase, &entryPoint, &seh))
+    goto err;
+
+  /*
+   * 5. Add PE image to global shared data and setup self unload
+   */
+
+  TRACEF("5. Add PE image to global shared data and setup self unload");
+
+  if (!SetLoadedPEImage(&loadedPEImage, imageBase, jobList, jobId, output,
+                        commandLineA))
+    goto err;
+  if (loadedImageBase) *loadedImageBase = imageBase;
+  HookControlEntry(HookControlCreateSelfUnload, hookBase, imageBase, seh,
+                   loadedPEImage, hCompletionEvent);
+
+  /*
+   * 6. Call exe entrypoint
+   */
+
+  TRACEF("6. Call exe entrypoint");
+
+  result = HookControlEntry(HookControlStart, entryPoint);
+  if (result != HookResultSuccess) {
+    PrintHookResultError(result, HookControlStart);
+    goto err;
+  }
   TRACEF("Thread of exe entry-point was created.");
+  loadedPEImage->IsRunning = TRUE;
   goto out;
 
 err:
-  if (imageBase) {
-    if (hookCtx->Features & HookFeatureCppSEH) {
-#ifdef _WIN64
-      RtlDeleteFunctionTable((PRUNTIME_FUNCTION)hookCtx->FunctionTable);
-#else
-      *(PVOID *)hookCtx->SEH_ImageBase = NULL;
-#endif
-    }
-    VirtualFree(imageBase, 0, MEM_RELEASE);
-  }
-  if (output) {
-    SimpleListForEach(&output->Logs, LogEntry, log, free(log->Text));
-    SimpleListFree(&output->Logs);
-    free(output);
-  }
-  if (jobList) SimpleRemoveJob(jobList, jobId);
-#ifndef HOOKS_DLL
-  if (hookBase) VirtualFree(hookBase, 0, MEM_RELEASE);
-#endif
-  if (hookCtx) free(hookCtx);
+  UnsetLoadedPEImage(loadedPEImage);
+  UnloadPEImage(imageBase, seh, features & HookFeatureCppSEH);
+  FreeOutput(output, jobList, jobId);
+  UnloadHook(hookBase);
 out:
   if (commandLineW) free(commandLineW);
 
@@ -517,7 +478,7 @@ void go(char *argv, int argc) {
       commandLineASize, jobVersion);
 
   InlineExecutePE(features, force, stdin_, stdinSize, peImage, peImageSize,
-                  commandLineA, commandLineASize, jobVersion, NULL, NULL);
+                  commandLineA, jobVersion, NULL, NULL);
 }
 #endif
 }

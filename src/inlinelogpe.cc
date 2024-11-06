@@ -1,17 +1,11 @@
-#ifdef _DEBUG
-#define xorstr_(s) s
-#else
-#include "xorstr.hpp"
-#endif
-
 extern "C" {
 // clang-format off
 #include "inlinecommon.h"
 // clang-format on
 
 #include "globalshareddata.cc"
+#include "hooks/simplelist1.cc"
 #include "jobs1.cc"
-#include "simplelist1.cc"
 
 void InlineLogPE(void *imageBase) {
   TRACEF("Begin fetch log.");
@@ -49,33 +43,36 @@ void InlineLogPE(void *imageBase) {
       if (!log->Text) {
         continue;
       }
-      _BeaconPrint(log->Type, xorstr_("%.*s"), log->Size, log->Text);
+      _BeaconPrint(log->Type, "%.*s", log->Size, log->Text);
       free(log->Text);
       log->Text = NULL;
       // TODO: Trim list?
     });
   });
 
-  TRACEF("Print stdout/stderr");
-
   if (peImage->IsRunning) {
     PRINTF("The PE image %p is still running. Skip printing stdout/stderr.",
            imageBase);
     goto out;
   }
+
+  TRACEF("Print stdout/stderr");
+
   if (output->Stdout) {
     if (output->Stdout->Size) {
-      _BeaconPrint(output->Type, xorstr_("Stdout: %.*s"), output->Stdout->Size,
+      _BeaconPrint(output->Type, "Stdout: %.*s", output->Stdout->Size,
                    (char *)output->Stdout->Buffer);
     }
     SimpleListFree(output->Stdout);
+    free(output->Stdout);
   }
   if (output->Stderr) {
     if (output->Stderr->Size) {
-      _BeaconPrint(output->Type, xorstr_("Stderr: %.*s"), output->Stderr->Size,
+      _BeaconPrint(output->Type, "Stderr: %.*s", output->Stderr->Size,
                    (char *)output->Stderr->Buffer);
     }
     SimpleListFree(output->Stderr);
+    free(output->Stderr);
   }
   SimpleListFree(&output->Logs);
   free(output);
@@ -83,6 +80,7 @@ void InlineLogPE(void *imageBase) {
     SimpleRemoveJob(jobList, jobId);
     TRACEF("Job %d was removed.", jobId);
   }
+  free(peImage->CommandLineA);
   *peImage = {};
   TRACEF("PE image %p was removed from global shared data.", imageBase);
 

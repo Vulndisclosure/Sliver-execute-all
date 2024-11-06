@@ -1,3 +1,6 @@
+#include <windows.h>
+
+#include "inlinecommon.h"
 #include "jobs.h"
 
 JobEntry *RemoveJob(int id, JobEntry **list) {

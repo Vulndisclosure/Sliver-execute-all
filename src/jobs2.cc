@@ -1,3 +1,6 @@
+#include <windows.h>
+
+#include "inlinecommon.h"
 #include "jobs.h"
 
 BOOL IsExecutableRegion(PVOID address, PMEMORY_BASIC_INFORMATION mbi) {

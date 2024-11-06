@@ -1,11 +1,9 @@
 #include "pipeserver.h"
 
-#ifndef AddressOf
-#define AddressOf(x) ((void *)(&(x)))
-#endif
+#include "hooks.h"
 
-BOOL CreatePipeServer(PipeServer *pipe, BOOL write, void *buffer, int size,
-                      LPTHREAD_START_ROUTINE proc) {
+static BOOL CreatePipeServer(PipeServer *pipe, BOOL write, void *buffer,
+                             int size, LPTHREAD_START_ROUTINE proc) {
   PipeServer t = {};
   // Fill pipe server structure
   HANDLE hThread = NULL;
@@ -44,7 +42,7 @@ err:
   return FALSE;
 }
 
-DWORD WINAPI ReadPipeServerProc(LPVOID lpThreadParameter) {
+static DWORD WINAPI ReadPipeServerProc(LPVOID lpThreadParameter) {
   PipeServer *pipe = (PipeServer *)lpThreadParameter;
 
   BOOL result = FALSE;
@@ -79,9 +77,7 @@ DWORD WINAPI ReadPipeServerProc(LPVOID lpThreadParameter) {
 }
 
 BOOL CreateReadPipeServer(PipeServer *pipe) {
-  return CreatePipeServer(
-      pipe, FALSE, NULL, 0x1000,
-      (LPTHREAD_START_ROUTINE)AddressOf(ReadPipeServerProc));
+  return CreatePipeServer(pipe, FALSE, NULL, 0x1000, ReadPipeServerProc);
 }
 
 void CloseReadPipeServer(PipeServer *pipe, BOOL freeBuffer) {
@@ -110,7 +106,7 @@ void CloseReadPipeServer(PipeServer *pipe, BOOL freeBuffer) {
   }
 }
 
-DWORD WINAPI WritePipeServerProc(LPVOID lpThreadParameter) {
+static DWORD WINAPI WritePipeServerProc(LPVOID lpThreadParameter) {
   PipeServer *pipe = (PipeServer *)lpThreadParameter;
 
   // Write data to the pipe
@@ -138,9 +134,7 @@ DWORD WINAPI WritePipeServerProc(LPVOID lpThreadParameter) {
 }
 
 BOOL CreateWritePipeServer(PipeServer *pipe, void *buffer, int size) {
-  return CreatePipeServer(
-      pipe, TRUE, buffer, size,
-      (LPTHREAD_START_ROUTINE)AddressOf(WritePipeServerProc));
+  return CreatePipeServer(pipe, TRUE, buffer, size, WritePipeServerProc);
 }
 
 void CloseWritePipeServer(PipeServer *pipe) {
