@@ -308,10 +308,10 @@ void UnloadPEImage(PVOID imageBase, PVOID seh, BOOL enableSEH) {
 BOOL SetLoadedPEImage(LoadedPEImage **peImage, PVOID imageBase,
                       JobEntry **jobList, int jobId, HookOutput *output,
                       LPSTR commandLineA) {
-  GlobalSharedData *sharedData = GetGlobalSharedData();
+  GlobalSharedData *data = GetGlobalSharedData();
   int index = 0;
   for (; index < LoadedPEImageMax; index++) {
-    if (!sharedData->PEImages[index].ImageBase) {
+    if (!data->PEImages[index].ImageBase) {
       break;
     }
   }
@@ -319,7 +319,7 @@ BOOL SetLoadedPEImage(LoadedPEImage **peImage, PVOID imageBase,
     PRINTF_ERR("Too many loaded PE images. Can't add to PEImages.");
     return FALSE;
   }
-  LoadedPEImage *p = *peImage = &sharedData->PEImages[index];
+  LoadedPEImage *p = *peImage = &data->PEImages[index];
   p->ImageBase = imageBase;
   p->IsRunning = FALSE;
   p->JobList = jobList;
@@ -330,7 +330,7 @@ BOOL SetLoadedPEImage(LoadedPEImage **peImage, PVOID imageBase,
     PRINTF_ERR("Failed to duplicate command-line string.");
     return FALSE;
   }
-  sharedData->LastImageBase = imageBase;
+  data->LastImageBase = imageBase;
   TRACEF("PE image %p was added to global shared data index %d.", imageBase,
          index);
   return TRUE;

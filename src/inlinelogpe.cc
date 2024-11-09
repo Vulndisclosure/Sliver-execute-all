@@ -10,20 +10,20 @@ extern "C" {
 void InlineLogPE(void *imageBase) {
   TRACEF("Begin fetch log.");
 
-  GlobalSharedData *sharedData = NULL;
+  GlobalSharedData *data = NULL;
   int index = 0;
   LoadedPEImage *peImage = NULL;
   JobEntry **jobList = NULL;
   int jobId = 0;
   HookOutput *output = NULL;
 
-  sharedData = GetGlobalSharedData();
+  data = GetGlobalSharedData();
   if (!imageBase) {
-    imageBase = sharedData->LastImageBase;
+    imageBase = data->LastImageBase;
     PRINTF("Use the last image base %p.", imageBase);
   }
   for (index = 0; index < LoadedPEImageMax; index++) {
-    if (sharedData->PEImages[index].ImageBase == imageBase) {
+    if (data->PEImages[index].ImageBase == imageBase) {
       break;
     }
   }
@@ -31,7 +31,7 @@ void InlineLogPE(void *imageBase) {
     PRINTF_ERR("Can't find %p in PEImages.", imageBase);
     goto out;
   }
-  peImage = &sharedData->PEImages[index];
+  peImage = &data->PEImages[index];
   jobList = (JobEntry **)peImage->JobList;
   jobId = peImage->JobId;
   output = peImage->Output;

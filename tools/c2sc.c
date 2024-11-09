@@ -1003,7 +1003,7 @@ static void GetOutputName(const char *input_name, char *output_name,
   size_t len = strlen(name);
   for (size_t i = 0; i < len; i++) {
     char c = name[i];
-    if (c == '.') {
+    if (save_header && c == '.') {
       output_name[i] = variable_name[i] = '_';
     } else {
       variable_name[i] = toupper(c);

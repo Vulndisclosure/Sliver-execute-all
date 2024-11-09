@@ -3,6 +3,12 @@
 
 #include "hooks/hookspub.h"
 
+typedef struct {
+  PVOID Data;
+  DWORD Size;
+  PVOID Self;
+} FileServer;
+
 #define LoadedPEImageMax 64
 
 typedef struct {
@@ -11,6 +17,7 @@ typedef struct {
 #ifndef _WIN64
   PVOID *SEH_ImageBaseList;
 #endif
+  FileServer *File;
 } GlobalSharedData;
 
 GlobalSharedData *GetGlobalSharedData();
