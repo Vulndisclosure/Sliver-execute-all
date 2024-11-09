@@ -337,10 +337,12 @@ BOOL SetLoadedPEImage(LoadedPEImage **peImage, PVOID imageBase,
 }
 
 void UnsetLoadedPEImage(LoadedPEImage *peImage) {
-  if (peImage->CommandLineA) {
-    free(peImage->CommandLineA);
+  if (peImage) {
+    if (peImage->CommandLineA) {
+      free(peImage->CommandLineA);
+    }
+    *peImage = {};
   }
-  *peImage = {};
 }
 
 HookResult InlineExecutePE(HookFeatures features, bool force, void *stdin_,
