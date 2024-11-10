@@ -19,15 +19,15 @@ __declspec(naked) void __fastcall VirtualFreeAndExitThread(void *, void *,
 #ifdef _WIN64
 __declspec(naked) void VirtualFreeAndExitThread(void *, void *, void *) {
   __asm__(
-      "sub $0x20, %%rsp\n"
       "push %%r8\n"
-      "mov $0x8000, %%r9\n"
-      "mov $0, %%r8\n"
-      "jmp *%%rdx\n"
+      "mov %%rdx, %%rax\n"
+      "mov $0x8000, %%r8\n"
+      "mov $0, %%rdx\n"
+      "jmp *%%rax\n"
       "int $3\n"
       :
       :
-      : "r8", "r9", "rdx");
+      : "rax", "rdx", "r8", "r9");
 }
 #else
 __declspec(naked) void __fastcall VirtualFreeAndExitThread(void *, void *,
