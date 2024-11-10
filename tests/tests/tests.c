@@ -8,6 +8,9 @@
 
 #include "../../src/hooks/hookspub.h"
 
+// c2scstartup.cc
+void Main() {}
+
 HookResult InlineExecutePE(HookFeatures features, bool force, void *stdin_,
                            int stdinSize, void *peImage, int peImageSize,
                            char *commandLineA, int jobVersion,
