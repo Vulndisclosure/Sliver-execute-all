@@ -359,6 +359,9 @@ DECLSPEC_NOINLINE VOID __fastcall Initialize(SIZE_T __imageBase,
     }
   }
 
+  // Zero the imports and relocations
+  memset(imports, 0, p - imports);
+
   *initialized = TRUE;
 }
 
