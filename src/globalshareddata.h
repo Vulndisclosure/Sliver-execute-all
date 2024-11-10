@@ -6,7 +6,7 @@
 typedef struct {
   PVOID Data;
   DWORD Size;
-  PVOID Self;
+  HANDLE CompletionEvent;
 } FileServer;
 
 #define LoadedPEImageMax 64
