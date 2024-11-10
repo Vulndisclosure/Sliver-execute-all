@@ -77,6 +77,12 @@ typedef struct _PEB {
 typedef HMODULE(WINAPI *GetModuleHandleAProc)(LPCSTR lpModuleName);
 typedef HMODULE(WINAPI *LoadLibraryAProc)(LPCSTR lpLibFileName);
 typedef FARPROC(WINAPI *GetProcAddressProc)(HMODULE hModule, LPCSTR lpProcName);
+typedef BOOL(WINAPI *VirtualQueryProc)(LPCVOID lpAddress,
+                                       PMEMORY_BASIC_INFORMATION lpBuffer,
+                                       SIZE_T dwLength);
+typedef BOOL(WINAPI *VirtualProtectProc)(LPVOID lpAddress, SIZE_T dwSize,
+                                         DWORD flNewProtect,
+                                         PDWORD lpflOldProtect);
 
 /*==============================================================================
  * Hash
@@ -117,6 +123,8 @@ typedef FARPROC(WINAPI *GetProcAddressProc)(HMODULE hModule, LPCSTR lpProcName);
 #define GETMODULEHANDLEA_HASH HASH_16("GetModuleHandleA", 0)
 #define LOADLIBRARYA_HASH HASH_12("LoadLibraryA", 0)
 #define GETPROCADDRESS_HASH HASH_14("GetProcAddress", 0)
+#define VIRTUALQUERY_HASH HASH_12("VirtualQuery", 0)
+#define VIRTUALPROTECT_HASH HASH_14("VirtualProtect", 0)
 
 /*==============================================================================
  * Startup
@@ -131,7 +139,8 @@ typedef FARPROC(WINAPI *GetProcAddressProc)(HMODULE hModule, LPCSTR lpProcName);
 #endif
 
 #ifdef BOF
-#define __DPRINTF TRACEF
+// #define __DPRINTF TRACEF
+#define __DPRINTF(...)
 #else
 #ifndef __Locator
 #ifdef _MSC_VER
@@ -217,6 +226,8 @@ DECLSPEC_NOINLINE VOID __fastcall Initialize(SIZE_T __imageBase,
   GetModuleHandleAProc GetModuleHandleA = NULL;
   LoadLibraryAProc LoadLibraryA = NULL;
   GetProcAddressProc GetProcAddress = NULL;
+  VirtualQueryProc VirtualQuery = NULL;
+  VirtualProtectProc VirtualProtect = NULL;
   PIMAGE_NT_HEADERS ntHeaders =
       (PIMAGE_NT_HEADERS)(hKernel32 + ((PIMAGE_DOS_HEADER)hKernel32)->e_lfanew);
   DWORD rva =
@@ -244,6 +255,12 @@ DECLSPEC_NOINLINE VOID __fastcall Initialize(SIZE_T __imageBase,
     } else if (hash == GETPROCADDRESS_HASH) {
       __DPRINTF("GetProcAddress was found: %d\n", i);
       api = (PVOID *)&GetProcAddress;
+    } else if (hash == VIRTUALQUERY_HASH) {
+      __DPRINTF("VirtualQuery was found: %d\n", i);
+      api = (PVOID *)&VirtualQuery;
+    } else if (hash == VIRTUALPROTECT_HASH) {
+      __DPRINTF("VirtualProtect was found: %d\n", i);
+      api = (PVOID *)&VirtualProtect;
     } else {
       continue;
     }
@@ -252,13 +269,25 @@ DECLSPEC_NOINLINE VOID __fastcall Initialize(SIZE_T __imageBase,
     PWORD ordinals = (PWORD)(hKernel32 + exportTable->AddressOfNameOrdinals);
     PDWORD functions = (PDWORD)(hKernel32 + exportTable->AddressOfFunctions);
     *api = (PVOID)(hKernel32 + functions[ordinals[i]]);
-    if (GetModuleHandleA && LoadLibraryA && GetProcAddress) {
+    if (GetModuleHandleA && LoadLibraryA && GetProcAddress && VirtualQuery &&
+        VirtualProtect) {
       __DPRINTF("All APIs were found: %d\n", i);
       __DPRINTF("GetModuleHandleA: %p\n", GetModuleHandleA);
       __DPRINTF("LoadLibraryA: %p\n", LoadLibraryA);
       __DPRINTF("GetProcAddress: %p\n", GetProcAddress);
+      __DPRINTF("VirtualQuery: %p\n", VirtualQuery);
+      __DPRINTF("VirtualProtect: %p\n", VirtualProtect);
       break;
     }
+  }
+
+  // TODO: Can I set using RWX memory in the cna script?
+  MEMORY_BASIC_INFORMATION mbi;
+  if (VirtualQuery(imageBase, &mbi, sizeof(mbi)) &&
+      mbi.Protect != PAGE_EXECUTE_READWRITE) {
+    DWORD oldProtect;
+    VirtualProtect(imageBase, __extra - __imageBase, PAGE_EXECUTE_READWRITE,
+                   &oldProtect);
   }
 #endif
 
