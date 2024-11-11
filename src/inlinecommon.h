@@ -35,7 +35,6 @@ void BeaconPrintfDebug(int type, const char *fmt, ...) {
   int strCb = 0;
   wchar_t *wstr = NULL;
   int wstrCch = 0;
-  char newline[] = "\n";
   va_list args;
 
   // Format string
@@ -43,11 +42,13 @@ void BeaconPrintfDebug(int type, const char *fmt, ...) {
   strCb = _vscprintf(fmt, args);
   va_end(args);
   if (strCb < 0) goto err;
-  strCb += 1;
+  strCb += 2;
   str = (char *)malloc(strCb);
   if (!str) goto err;
   va_start(args, fmt);
   vsprintf_s(str, strCb, fmt, args);
+  str[strCb - 2] = '\n';
+  str[strCb - 1] = '\0';
   va_end(args);
 
   if (type == CALLBACK_OUTPUT_UTF8) {
@@ -74,9 +75,8 @@ void BeaconPrintfDebug(int type, const char *fmt, ...) {
   }
 
   // Print to Beacon
-  BeaconOutput(type, str, strCb);
+  BeaconOutput(type, str, strCb - 2);
   OutputDebugStringA(str);
-  OutputDebugStringA(newline);
   goto out;
 
 err:

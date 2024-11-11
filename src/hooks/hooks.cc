@@ -95,11 +95,13 @@ void BeaconPrintfPostMsg(int type, const char *fmt, ...) {
   strCb = _vscprintf(fmt, args);
   va_end(args);
   if (strCb < 0) goto err;
-  strCb += 1;
+  strCb += 2;
   str = (char *)malloc(strCb);
   if (!str) goto err;
   va_start(args, fmt);
   vsprintf_s(str, strCb, fmt, args);
+  str[strCb - 2] = '\n';
+  str[strCb - 1] = '\0';
   va_end(args);
 
   if (type == CALLBACK_OUTPUT_UTF8) {
@@ -127,16 +129,13 @@ void BeaconPrintfPostMsg(int type, const char *fmt, ...) {
 
   // Post message
   OutputDebugStringA(str);
-  OutputDebugStringA("\n");
   if (Output->JobOutputWriteHandle) {
-    str[strCb - 1] = '\n';
     SpinLock(Output->JobOutputLock,
-             result = WriteFile(Output->JobOutputWriteHandle, str, strCb, NULL,
-                                NULL));
-    str[strCb - 1] = '\0';
+             result = WriteFile(Output->JobOutputWriteHandle, str, strCb - 1,
+                                NULL, NULL));
     if (!result) goto err;
   } else {
-    log = {type, strCb, str};
+    log = {type, strCb - 2, str};
     SpinLock(Output->LogLock, SimpleListAdd(&Output->Logs, LogEntry, log));
     str = NULL;  // Don't free
   }
