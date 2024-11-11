@@ -155,7 +155,9 @@ out:
  * Self Unload
  *============================================================================*/
 
+#ifndef HOOKS_DLL
 #include "../selfunload.h"
+#endif
 
 HookResult HookControlStopImpl();
 void HookControlDeleteImpl();
