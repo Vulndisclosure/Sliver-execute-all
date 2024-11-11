@@ -87,7 +87,7 @@ void MainImpl() {
   // Get the global shared data
   GlobalSharedData* data = GetGlobalSharedData();
   if (data->File) {
-    TRACEF("File already set\n");
+    TRACEF("File already set");
     return;
   }
 
@@ -99,8 +99,13 @@ void MainImpl() {
 
   // Create the initial pipe to receive the header
   HANDLE hInitialPipe = CreateNamedPipeA(
-      pipeName, PIPE_ACCESS_INBOUND, PIPE_READMODE_BYTE | PIPE_WAIT,
-      PIPE_UNLIMITED_INSTANCES, 0, 1024, 0, NULL);
+      pipeName, PIPE_ACCESS_INBOUND | FILE_FLAG_FIRST_PIPE_INSTANCE,
+      PIPE_READMODE_BYTE | PIPE_WAIT, PIPE_UNLIMITED_INSTANCES, 0, 1024, 0,
+      NULL);
+  if (hInitialPipe == INVALID_HANDLE_VALUE) {
+    TRACEF("Failed to create the initial named pipe: %d", GetLastError());
+    return;
+  }
   ConnectNamedPipe(hInitialPipe, NULL);
 
   // Read and validate the header
@@ -123,10 +128,14 @@ void MainImpl() {
   file->Size = 0;
   file->CompletionEvent = CreateEventA(NULL, TRUE, FALSE, NULL);
   data->File = file;
-  TRACEF("File server set: %p\n", &data->File);
+  TRACEF("File server set: %p", &data->File);
 
   // Create the named pipe servers to receive all chunks
+  // COMMAND_UPLOAD = 768 * 1024, COMMAND_UPLOAD_CONTINUE = 254 * 1024
   SIZE_T blockCount = header.Size / (254 * 1024);
+  if (blockCount == 0) {
+    blockCount = 1;
+  }
   HANDLE* hPipes = (HANDLE*)malloc(sizeof(HANDLE) * blockCount);
   for (SIZE_T i = 0; i < blockCount; i++) {
     hPipes[i] =
@@ -134,15 +143,16 @@ void MainImpl() {
                                   PIPE_READMODE_BYTE | PIPE_WAIT,
                                   PIPE_UNLIMITED_INSTANCES, 0, 1024, 0, NULL)
                : hInitialPipe;
-    if (!hPipes[i] || hPipes[i] == INVALID_HANDLE_VALUE) {
+    if (hPipes[i] == INVALID_HANDLE_VALUE) {
       TRACEF("Failed to create named pipe %d: %d", (UINT32)i, GetLastError());
     }
   }
+  TRACEF("Named pipes created: %d", (UINT32)blockCount);
 
   // Read all chunks
   PVOID buffer = malloc(header.Size);
   DWORD offset = 0;
-  do {
+  while (TRUE) {
     for (SIZE_T i = 0; i < blockCount; i++) {
       // Skip the closed named pipe
       if (!hPipes[i]) {
@@ -168,9 +178,14 @@ void MainImpl() {
       hPipes[i] = NULL;
     }
 
+    if (offset == header.Size) {
+      TRACEF("All data received");
+      break;
+    }
+
     // Sleep for a while to reduce CPU usage
     Sleep(10);
-  } while (offset != header.Size);
+  }
 
   // Close unused named pipes
   for (SIZE_T i = 0; i < blockCount; i++) {
@@ -178,6 +193,8 @@ void MainImpl() {
       CloseHandle(hPipes[i]);
     }
   }
+  free(hPipes);
+  TRACEF("Named pipes closed");
 
   // Set the file data and trigger the completion event
   file->Data = buffer;
