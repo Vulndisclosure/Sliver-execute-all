@@ -484,10 +484,7 @@ sub trace_init {
 # Arguments
 #   $1 - text - The text to log.
 sub trace {
-    if ($trace_inited && $trace_enabled) {
-        println($1);
-        if ($trace_bid != 0) {
-            blog($trace_bid, $1);
-        }
+    if ($trace_inited && $trace_enabled && $trace_bid) {
+        blog($trace_bid, $1);
     }
 }
