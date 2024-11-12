@@ -30,7 +30,7 @@ tools\c2sc.exe hs bin\hooks.x86.exe bin\hooks.x86d.exe bin\hooks.x64.exe bin\hoo
 move hooks_*.h src\hooks
 tools\c2sc.exe b bin\fileserver.x86.exe bin\fileserver.x86d.exe bin\fileserver.x64.exe bin\fileserver.x64d.exe
 move fileserver.*.bin bin
-del tools\c2sc.exe c2sc.obj selfunload.x64.obj bin\hooks.*.exe hooks.obj pipeserver.obj simplelist1.obj simplelist2.obj hooks.x64.obj bin\fileserver.*.exe c2scstartup.obj fileserver.obj globalshareddata.obj
+del tools\c2sc.exe bin\hooks.*.exe bin\fileserver.*.exe *.obj
 
 call :SET_ENV MSVC_X86
 cl /c src\inlineexecutepe.cc %BOF_FLAGS% /Fo"bin\inlineexecutepe.x86.o"
@@ -53,7 +53,7 @@ tools\fixbof.exe tools\link ^
 bin\inlineexecutepe.x86.o bin\inlineexecutepe.x86d.o bin\inlineexecutepe.x64.o bin\inlineexecutepe.x64d.o ^
 bin\inlinelogpe.x86.o bin\inlinelogpe.x86d.o bin\inlinelogpe.x64.o bin\inlinelogpe.x64d.o ^
 bin\inlinelistpe.x86.o bin\inlinelistpe.x86d.o bin\inlinelistpe.x64.o bin\inlinelistpe.x64d.o
-del tools\fixbof.exe fixbof.obj obj.obj
+del tools\fixbof.exe *.obj
 
 copy /Y src\inline-execute-all.cna bin\inline-execute-all.cna
 

@@ -60,25 +60,6 @@ PVOID SEH_ImageBase = NULL;
 LoadedPEImage *PEImage = NULL;
 HANDLE CompletionEventHandle = NULL;
 
-// Internal
-
-DWORD ParentProcessId = 0;
-
-PipeServer StdinPipe = {};
-PipeServer StdoutPipe = {};
-PipeServer StderrPipe = {};
-
-SimpleList ThreadList = {};
-volatile LONG ThreadListLock = 0;
-SimpleList ExceptionHandlerList = {};
-SimpleList MemoryList = {};
-volatile LONG MemoryListLock = 0;
-SimpleList TlsList = {};
-volatile LONG TlsListLock = 0;
-
-HMODULE Kernel32Base = NULL;
-HMODULE MsvcrtBase = NULL;
-
 #define HasFeatures(x) ((Features & (x)) == (x))
 
 void BeaconPrintfPostMsg(int type, const char *fmt, ...) {
@@ -203,43 +184,7 @@ DWORD WINAPI SelfUnloadProc(LPVOID lpThreadParameter) {
  * Hook Implementations
  *============================================================================*/
 
-VOID WINAPI MyExitProcess(_In_ UINT uExitCode) {
-  TRACEF("ExitProcess was called.");
-  if (HasFeatures(HookFeatureUnload | HookFeatureGo)) {
-    SpinLock(ThreadListLock, {
-      SimpleListForEach(&ThreadList, DWORD, entry, {
-        DWORD id = *entry;
-        if (id == (DWORD)(SIZE_T)NtCurrentThreadId()) {
-          continue;
-        }
-        HANDLE hThread = OpenThread(THREAD_ALL_ACCESS, FALSE, id);
-        if (hThread) {
-          TerminateThread(hThread, 0);
-          TRACEF("Thread %d was terminated.", (UINT)id);
-          CloseHandle(hThread);
-        } else {
-          TRACEF("Can't open thread %d. Maybe already exited.", (UINT)id);
-        }
-      });
-    });
-    TRACEF("Thread %d will be terminated.", (UINT)(SIZE_T)NtCurrentThreadId());
-  }
-  if (HasFeatures(HookFeatureUnload)) {
-    HANDLE hLastThread = OpenThread(THREAD_ALL_ACCESS, FALSE,
-                                    (DWORD)(SIZE_T)NtCurrentThreadId());
-    HANDLE hSelfUnloadThread = CreateThread(
-        NULL, 0, (LPTHREAD_START_ROUTINE)SelfUnloadProc, hLastThread, 0, NULL);
-    if (hSelfUnloadThread) {
-      CloseHandle(hSelfUnloadThread);
-      TRACEF("A new thread was created to self-unload.");
-    } else {
-      PRINTF_ERR("Can't create a new thread to self-unload.");
-    }
-  }
-  PRINTF("Process exited with code %d.", uExitCode);
-  ExitThread(uExitCode);
-  __debugbreak();
-}
+/* Command-line related */
 
 LPSTR WINAPI MyGetCommandLineA() {
   TRACEF("GetCommandLineA was called.");
@@ -250,6 +195,12 @@ LPWSTR WINAPI MyGetCommandLineW() {
   TRACEF("GetCommandLineW was called.");
   return CommandLineW;
 }
+
+/* Stdio related */
+
+PipeServer StdinPipe = {};
+PipeServer StdoutPipe = {};
+PipeServer StderrPipe = {};
 
 HANDLE WINAPI MyGetStdHandle(_In_ DWORD nStdHandle) {
   TRACEF("GetStdHandle was called. (nStdHandle: %d)", (UINT)nStdHandle);
@@ -263,25 +214,6 @@ HANDLE WINAPI MyGetStdHandle(_In_ DWORD nStdHandle) {
     default:
       return GetStdHandle(nStdHandle);
   }
-}
-
-BOOL WINAPI MyProcess32NextW(HANDLE hSnapshot, LPPROCESSENTRY32W lppe) {
-  // CreateToolhelp32Snapshot will be called twice in
-  // https://github.com/spf13/cobra/blob/main/command_win.go
-  BOOL b = Process32NextW(hSnapshot, lppe);
-  if (!b) {
-    return FALSE;
-  }
-  // TRACEF("Process32NextW was called. (th32ProcessID: %d, szExeFile: %ws)",
-  //        lppe->th32ProcessID, lppe->szExeFile);
-  if (lppe->th32ProcessID == (DWORD)(SIZE_T)NtCurrentProcessId()) {
-    ParentProcessId = lppe->th32ParentProcessID;
-  }
-  if (lppe->th32ProcessID == ParentProcessId &&
-      HashRT(lppe->szExeFile) == HashCT(L"explorer.exe")) {
-    lppe->szExeFile[0] = '_';
-  }
-  return b;
 }
 
 BOOL WINAPI MyWriteFile(_In_ HANDLE hFile,
@@ -322,6 +254,34 @@ BOOL WINAPI MyWriteFile(_In_ HANDLE hFile,
                    lpNumberOfBytesWritten, lpOverlapped);
 }
 
+/* Hacking for golang cobra command line parser */
+
+DWORD ParentProcessId = 0;
+
+BOOL WINAPI MyProcess32NextW(HANDLE hSnapshot, LPPROCESSENTRY32W lppe) {
+  // CreateToolhelp32Snapshot will be called twice in
+  // https://github.com/spf13/cobra/blob/main/command_win.go
+  BOOL b = Process32NextW(hSnapshot, lppe);
+  if (!b) {
+    return FALSE;
+  }
+  // TRACEF("Process32NextW was called. (th32ProcessID: %d, szExeFile: %ws)",
+  //        lppe->th32ProcessID, lppe->szExeFile);
+  if (lppe->th32ProcessID == (DWORD)(SIZE_T)NtCurrentProcessId()) {
+    ParentProcessId = lppe->th32ParentProcessID;
+  }
+  if (lppe->th32ProcessID == ParentProcessId &&
+      HashRT(lppe->szExeFile) == HashCT(L"explorer.exe")) {
+    lppe->szExeFile[0] = '_';
+  }
+  return b;
+}
+
+/* Thread/Process related */
+
+SimpleList ThreadList = {};
+volatile LONG ThreadListLock = 0;
+
 HANDLE WINAPI MyCreateThread(_In_opt_ LPSECURITY_ATTRIBUTES lpThreadAttributes,
                              _In_ SIZE_T dwStackSize,
                              _In_ LPTHREAD_START_ROUTINE lpStartAddress,
@@ -361,6 +321,48 @@ uintptr_t __cdecl Mybeginthread(_In_ void *_StartAddress,
   return (uintptr_t)hThread;
 }
 
+VOID WINAPI MyExitProcess(_In_ UINT uExitCode) {
+  TRACEF("ExitProcess was called.");
+  if (HasFeatures(HookFeatureUnload | HookFeatureGo)) {
+    SpinLock(ThreadListLock, {
+      SimpleListForEach(&ThreadList, DWORD, entry, {
+        DWORD id = *entry;
+        if (id == (DWORD)(SIZE_T)NtCurrentThreadId()) {
+          continue;
+        }
+        HANDLE hThread = OpenThread(THREAD_ALL_ACCESS, FALSE, id);
+        if (hThread) {
+          TerminateThread(hThread, 0);
+          TRACEF("Thread %d was terminated.", (UINT)id);
+          CloseHandle(hThread);
+        } else {
+          TRACEF("Can't open thread %d. Maybe already exited.", (UINT)id);
+        }
+      });
+    });
+    TRACEF("Thread %d will be terminated.", (UINT)(SIZE_T)NtCurrentThreadId());
+  }
+  if (HasFeatures(HookFeatureUnload)) {
+    HANDLE hLastThread = OpenThread(THREAD_ALL_ACCESS, FALSE,
+                                    (DWORD)(SIZE_T)NtCurrentThreadId());
+    HANDLE hSelfUnloadThread = CreateThread(
+        NULL, 0, (LPTHREAD_START_ROUTINE)SelfUnloadProc, hLastThread, 0, NULL);
+    if (hSelfUnloadThread) {
+      CloseHandle(hSelfUnloadThread);
+      TRACEF("A new thread was created to self-unload.");
+    } else {
+      PRINTF_ERR("Can't create a new thread to self-unload.");
+    }
+  }
+  PRINTF("Process exited with code %d.", uExitCode);
+  ExitThread(uExitCode);
+  __debugbreak();
+}
+
+/* System callback related */
+
+SimpleList ExceptionHandlerList = {};
+
 _Ret_maybenull_ PVOID WINAPI MyAddVectoredExceptionHandler(
     _In_ ULONG First, _In_ PVECTORED_EXCEPTION_HANDLER Handler) {
   PVOID handle = AddVectoredExceptionHandler(First, Handler);
@@ -385,29 +387,19 @@ _Ret_maybenull_ PVOID WINAPI MyAddVectoredContinueHandler(
   return handle;
 }
 
-/*
-// TODO: SetUnhandledExceptionFilter does not have a corresponding remove
-// function. If multiple golang programs are executed in memory together, set
-// previous exception filter will fail. (32bit only)
-LPTOP_LEVEL_EXCEPTION_FILTER WINAPI MySetUnhandledExceptionFilter(
-    _In_opt_ LPTOP_LEVEL_EXCEPTION_FILTER lpTopLevelExceptionFilter) {
-  LPTOP_LEVEL_EXCEPTION_FILTER previous =
-      SetUnhandledExceptionFilter(lpTopLevelExceptionFilter);
-  TRACEF("SetUnhandledExceptionFilter was called. (lpTopLevelExceptionFilter: "
-         "%p, previous: %p)",
-         lpTopLevelExceptionFilter, previous);
-  ExceptionHandlerEntry entry = {EHTYPE_UEF, (PVOID)previous};
-  SimpleListAdd(&ExceptionHandlerList, ExceptionHandlerEntry, entry);
-  return previous;
-}
-*/
-
 BOOL WINAPI MySetConsoleCtrlHandler(_In_opt_ PHANDLER_ROUTINE HandlerRoutine,
                                     _In_ BOOL Add) {
   TRACEF("SetConsoleCtrlHandler was called. (HandlerRoutine: %p, Add: %d)",
          HandlerRoutine, Add);
   return TRUE;
 }
+
+/* Allocation related */
+
+SimpleList MemoryList = {};
+volatile LONG MemoryListLock = 0;
+SimpleList TlsList = {};
+volatile LONG TlsListLock = 0;
 
 _Ret_maybenull_ _Post_writable_byte_size_(dwSize)
 LPVOID WINAPI MyVirtualAlloc(_In_opt_ LPVOID lpAddress, _In_ SIZE_T dwSize,
@@ -448,6 +440,11 @@ DWORD WINAPI MyTlsAlloc() {
   SpinLock(TlsListLock, SimpleListAdd(&TlsList, DWORD, i));
   return i;
 }
+
+/* GetProcAddress */
+
+HMODULE Kernel32Base = NULL;
+HMODULE MsvcrtBase = NULL;
 
 FARPROC WINAPI MyGetProcAddress(_In_ HMODULE hModule, _In_ LPCSTR lpProcName) {
   if ((SIZE_T)lpProcName < 0x10000) {
@@ -705,6 +702,9 @@ HookResult HookControlStopImpl() {
     TRACEF("All tls were released.");
   }
   if (HasFeatures(HookFeatureUnload)) {
+    // TODO: SetUnhandledExceptionFilter does not have a corresponding remove
+    // function. If multiple golang programs are executed in memory together,
+    // set previous exception filter will fail. (32bit only)
     SetUnhandledExceptionFilter(NULL);
   }
 
