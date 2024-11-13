@@ -11,6 +11,7 @@ typedef enum {
   HookFeatureStreamingOutput = 0x02,
   HookFeatureCommandLine = 0x04,
   HookFeatureUnload = 0x08,
+  HookFeatureVirtualFileSystem = 0x10,
 
   HookFeatureCpp = 0x0100,
   HookFeatureCppSEH = 0x0200,
@@ -19,10 +20,24 @@ typedef enum {
   HookFeatureGoCobraFakeParentProcess = 0x020000
 } HookFeatures;
 
-// The HookOutput should be both allocated and freed outside of the hooks
+typedef enum {
+  HookVirtualFileInput,
+  HookVirtualFileOutput,
+  HookVirtualFileOutputPattern
+} HookVirtualFileType;
+
+// Represents a virtual file storage or virtual file pattern
 typedef struct {
-  SimpleList *Stdout;
-  SimpleList *Stderr;
+  WCHAR FileName[MAX_PATH];  // Can be a pattern if it is a output file
+  HookVirtualFileType Type;
+  SimpleList Data;  // Empty if it is a output file or output file pattern
+  volatile LONG Lock;
+} HookVirtualFile;
+
+// Owned by LoadedPEImage
+typedef struct {
+  SimpleList *Stdout;           // Moved from StdoutPipe.Buffer
+  SimpleList *Stderr;           // Moved from StderrPipe.Buffer
   HANDLE JobOutputWriteHandle;  // Real-time output using job api
   volatile LONG JobOutputLock;
   SimpleList Logs;  // Real-time output fallback when job api unavailable
@@ -36,6 +51,8 @@ typedef struct {
   PVOID JobList;
   int JobId;
   HookOutput *Output;
+  HookVirtualFile *VirtualFiles;  // Moved from VirtualFileList
+  DWORD VirtualFileCount;
   LPSTR CommandLineA;  // For display only
 } LoadedPEImage;
 

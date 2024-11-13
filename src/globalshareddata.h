@@ -9,7 +9,7 @@ typedef struct {
   HANDLE CompletionEvent;
 } FileServer;
 
-#define LoadedPEImageMax 64
+#define LoadedPEImageMax 48
 
 typedef struct {
   LoadedPEImage PEImages[LoadedPEImageMax];

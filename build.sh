@@ -8,17 +8,17 @@ CC64="$CC64 -mcmodel=small"
 WARNING_FLAGS="-Wall -Wextra -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-function -Wno-unused-value -Wno-unused-variable -Wno-array-bounds"
 CC_FLAGS="-Os -fomit-frame-pointer -fno-ident -nostdlib -ffunction-sections -fdata-sections -fno-exceptions -fno-unwind-tables -fno-asynchronous-unwind-tables $WARNING_FLAGS -D __USE_MINGW_ANSI_STDIO=0"
 BOF_FLAGS="$CC_FLAGS -fno-function-sections -fno-data-sections -D BOF"
-C2SC_LIB_FLAGS="-lkernel32"
+C2SC_LIB_FLAGS="-lkernel32 -lshlwapi"
 C2SC_LINK_FLAGS="$C2SC_LIB_FLAGS -Ltools/link -lgcc -Wl,--gc-sections,--section-alignment,16,--file-alignment,16,--image-base,0,-T,linker.ld"
 C2SC_LINK_FLAGS32="-l:msvcrt.x86.lib $C2SC_LINK_FLAGS"
 C2SC_LINK_FLAGS64="-l:msvcrt.x64.lib $C2SC_LINK_FLAGS"
 
 mkdir -p bin
 
-$CC32 src/hooks/hooks.cc src/hooks/control.cc src/hooks/log.cc src/hooks/pipeserver.cc src/hooks/simplelist1.cc src/hooks/simplelist2.cc $CC_FLAGS -o bin/hooks.x86.exe $C2SC_LINK_FLAGS32,-e,_HookControlEntry &
-$CC64 src/hooks/hooks.cc src/hooks/control.cc src/hooks/log.cc src/hooks/pipeserver.cc src/hooks/simplelist1.cc src/hooks/simplelist2.cc $CC_FLAGS -o bin/hooks.x64.exe $C2SC_LINK_FLAGS64,-e,HookControlEntry &
-$CC32 src/hooks/hooks.cc src/hooks/control.cc src/hooks/log.cc src/hooks/pipeserver.cc src/hooks/simplelist1.cc src/hooks/simplelist2.cc $CC_FLAGS -D _DEBUG -o bin/hooks.x86d.exe $C2SC_LINK_FLAGS32,-e,_HookControlEntry &
-$CC64 src/hooks/hooks.cc src/hooks/control.cc src/hooks/log.cc src/hooks/pipeserver.cc src/hooks/simplelist1.cc src/hooks/simplelist2.cc $CC_FLAGS -D _DEBUG -o bin/hooks.x64d.exe $C2SC_LINK_FLAGS64,-e,HookControlEntry &
+$CC32 src/hooks/hooks.cc src/hooks/control.cc src/hooks/vfs.cc src/hooks/log.cc src/hooks/pipeserver.cc src/hooks/simplelist1.cc src/hooks/simplelist2.cc $CC_FLAGS -o bin/hooks.x86.exe $C2SC_LINK_FLAGS32,-e,_HookControlEntry &
+$CC64 src/hooks/hooks.cc src/hooks/control.cc src/hooks/vfs.cc src/hooks/log.cc src/hooks/pipeserver.cc src/hooks/simplelist1.cc src/hooks/simplelist2.cc $CC_FLAGS -o bin/hooks.x64.exe $C2SC_LINK_FLAGS64,-e,HookControlEntry &
+$CC32 src/hooks/hooks.cc src/hooks/control.cc src/hooks/vfs.cc src/hooks/log.cc src/hooks/pipeserver.cc src/hooks/simplelist1.cc src/hooks/simplelist2.cc $CC_FLAGS -D _DEBUG -o bin/hooks.x86d.exe $C2SC_LINK_FLAGS32,-e,_HookControlEntry &
+$CC64 src/hooks/hooks.cc src/hooks/control.cc src/hooks/vfs.cc src/hooks/log.cc src/hooks/pipeserver.cc src/hooks/simplelist1.cc src/hooks/simplelist2.cc $CC_FLAGS -D _DEBUG -o bin/hooks.x64d.exe $C2SC_LINK_FLAGS64,-e,HookControlEntry &
 $CC32 src/c2scstartup.cc src/fileserver.cc src/globalshareddata.cc $CC_FLAGS -o bin/fileserver.x86.exe $C2SC_LINK_FLAGS32,-e,_Entry &
 $CC64 src/c2scstartup.cc src/fileserver.cc src/globalshareddata.cc $CC_FLAGS -o bin/fileserver.x64.exe $C2SC_LINK_FLAGS64,-e,Entry &
 $CC32 src/c2scstartup.cc src/fileserver.cc src/globalshareddata.cc $CC_FLAGS -D _DEBUG -o bin/fileserver.x86d.exe $C2SC_LINK_FLAGS32,-e,_Entry &
