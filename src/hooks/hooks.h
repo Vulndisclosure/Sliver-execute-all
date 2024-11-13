@@ -4,6 +4,8 @@
 #include <tlhelp32.h>
 // clang-format on
 #include "hookspub.h"
+#include "pipeserver.h"
+#include "simplelist.h"
 
 /*==============================================================================
  * Import
@@ -16,6 +18,82 @@
 #define CALLBACK_OUTPUT_UTF8 0x20
 #define CALLBACK_ERROR       0x0d
 // clang-format on
+
+/*==============================================================================
+ * Declarations
+ *============================================================================*/
+
+// Basic (In)
+
+extern HookFeatures Features;
+extern LPSTR CommandLineA;
+extern LPWSTR CommandLineW;
+extern HookOutput *Output;  // owned by LoadedPEImage
+
+#define HasFeatures(x) ((Features & (x)) == (x))
+
+// Self Unload (In)
+
+extern PVOID HookBase;
+extern PVOID ImageBase;
+#ifdef _WIN64
+extern PVOID FunctionTable;
+#else
+extern PVOID SEH_ImageBase;
+#endif
+extern LoadedPEImage *PEImage;
+extern HANDLE CompletionEventHandle;
+
+DWORD WINAPI SelfUnloadProc(LPVOID lpThreadParameter);
+
+// Stdio related
+
+extern PipeServer StdinPipe;
+extern PipeServer StdoutPipe;
+extern PipeServer StderrPipe;
+
+// Hacking for golang cobra command line parser
+
+extern DWORD ParentProcessId;
+
+// Thread/Process related
+
+extern SimpleList ThreadList;
+extern volatile LONG ThreadListLock;
+
+HANDLE WINAPI MyCreateThread(_In_opt_ LPSECURITY_ATTRIBUTES lpThreadAttributes,
+                             _In_ SIZE_T dwStackSize,
+                             _In_ LPTHREAD_START_ROUTINE lpStartAddress,
+                             _In_opt_ __drv_aliasesMem LPVOID lpParameter,
+                             _In_ DWORD dwCreationFlags,
+                             _Out_opt_ LPDWORD lpThreadId);
+
+// System callback related
+
+#define EHTYPE_VEH 1
+#define EHTYPE_VCH 2
+// #define EHTYPE_UEF 3
+
+typedef struct {
+  int Type;
+  PVOID Handle;
+} ExceptionHandlerEntry;
+
+extern SimpleList ExceptionHandlerList;
+
+// Allocation related
+
+extern SimpleList MemoryList;
+extern volatile LONG MemoryListLock;
+extern SimpleList TlsList;
+extern volatile LONG TlsListLock;
+
+// GetProcAddress
+
+extern HMODULE Kernel32Base;
+extern HMODULE MsvcrtBase;
+
+FARPROC WINAPI MyGetProcAddress(_In_ HMODULE hModule, _In_ LPCSTR lpProcName);
 
 /*==============================================================================
  * Helpers

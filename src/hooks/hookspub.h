@@ -45,15 +45,6 @@ typedef struct {
   char *Text;
 } LogEntry;
 
-#define EHTYPE_VEH 1
-#define EHTYPE_VCH 2
-// #define EHTYPE_UEF 3
-
-typedef struct {
-  int Type;
-  PVOID Handle;
-} ExceptionHandlerEntry;
-
 typedef enum _HookControl {
   HookControlCreate = 1,
   HookControlCreateSelfUnload,
