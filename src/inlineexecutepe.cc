@@ -9,6 +9,7 @@ extern "C" {
 #include "c2scstartup.cc"
 #include "globalshareddata.cc"
 #include "hooks/simplelist1.cc"
+#include "hooks/simplelist2.cc"
 #include "jobs1.cc"
 #include "jobs2.cc"
 #include "seh.cc"
@@ -279,6 +280,7 @@ BOOL UnpackVirtualFiles(void *packedVirtualFiles,
   // Read count
   PBYTE p = (PBYTE)packedVirtualFiles;
   DWORD n = *count = *(PDWORD)p;
+  TRACEF("Virtual file count: %d", n);
   p += 4;
   if (n == 0) {
     return TRUE;
@@ -307,10 +309,12 @@ BOOL UnpackVirtualFiles(void *packedVirtualFiles,
       return FALSE;
     }
     memcpy(files[i].FileName, fullPath, MAX_PATH);
+    TRACEF("Virtual file %d path: %ws -> %ws", i, path, fullPath);
     p += pathSize;
 
     // Read type
     files[i].Type = (HookVirtualFileType)(*(PDWORD)p);
+    TRACEF("Virtual file %d type: %d", i, files[i].Type);
     p += 4;
 
     // Read data
@@ -324,6 +328,7 @@ BOOL UnpackVirtualFiles(void *packedVirtualFiles,
         continue;
       }
       DWORD size = *(PDWORD)p;
+      TRACEF("Virtual file %d size: %d", i, size);
       p += 4;
       if (!SimpleListAddBuffer(&files[i].Data, p, size)) {
         PRINTF_ERR("Failed to add buffer to virtual file data.");
@@ -585,12 +590,16 @@ void go(char *argv, int argc) {
   void *peImage = BeaconDataExtract(&parser, &peImageSize);
   int commandLineASize = 0;
   char *commandLineA = BeaconDataExtract(&parser, &commandLineASize);
+  int packedVirtualFilesSize = 0;
+  void *packedVirtualFiles =
+      BeaconDataExtract(&parser, &packedVirtualFilesSize);
   int jobVersion = BeaconDataInt(&parser);
   TRACEF(
       "Arguments was parsed. (features: %x, force: %d, stdin: %p (%d bytes), "
-      "peImage: %p (%d bytes), commandLineA: %s (%d bytes), jobVersion: %d)",
+      "peImage: %p (%d bytes), commandLineA: %s (%d bytes), "
+      "packedVirtualFilesSize: %p (%d bytes), jobVersion: %d)",
       features, force, stdin_, stdinSize, peImage, peImageSize, commandLineA,
-      commandLineASize, jobVersion);
+      commandLineASize, packedVirtualFiles, packedVirtualFilesSize, jobVersion);
 
   BOOL fromFileServer = FALSE;
   if (!peImage || !peImageSize) {
@@ -598,7 +607,7 @@ void go(char *argv, int argc) {
   }
 
   InlineExecutePE(features, force, stdin_, stdinSize, peImage, peImageSize,
-                  commandLineA, jobVersion, NULL, NULL);
+                  commandLineA, packedVirtualFiles, jobVersion, NULL, NULL);
 
   if (fromFileServer) {
     if (peImage) free(peImage);

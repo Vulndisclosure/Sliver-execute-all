@@ -325,7 +325,7 @@ static HANDLE WINAPI MyCreateFileW(
                      dwFlagsAndAttributes, hTemplateFile);
 }
 
-static BOOL WINAPI MyCloseHandle(_In_ _Post_ptr_invalid_ HANDLE hObject) {
+static BOOL WINAPI MyCloseHandle(_In_ HANDLE hObject) {
   if (VfsCloseHandle(hObject)) {
     TRACEF_VFS("CloseHandle was called. (hObject: %p)", hObject);
     return TRUE;
@@ -337,7 +337,7 @@ static BOOL WINAPI MyCloseHandle(_In_ _Post_ptr_invalid_ HANDLE hObject) {
 static _Must_inspect_result_ BOOL WINAPI MyReadFile(
     _In_ HANDLE hFile,
     _Out_writes_bytes_to_opt_(nNumberOfBytesToRead, *lpNumberOfBytesRead)
-        __out_data_source(FILE) LPVOID lpBuffer,
+        LPVOID lpBuffer,
     _In_ DWORD nNumberOfBytesToRead, _Out_opt_ LPDWORD lpNumberOfBytesRead,
     _Inout_opt_ LPOVERLAPPED lpOverlapped) {
   if (VfsReadFile(hFile, lpBuffer, nNumberOfBytesToRead, lpNumberOfBytesRead)) {

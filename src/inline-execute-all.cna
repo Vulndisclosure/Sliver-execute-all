@@ -19,6 +19,7 @@ $HookFeatureRedirectStdio = 0x01;
 $HookFeatureStreamingOutput = 0x02;
 $HookFeatureCommandLine = 0x04;
 $HookFeatureUnload = 0x08;
+$HookFeatureVirtualFileSystem = 0x10;
 
 $HookFeatureCpp = 0x0100;
 $HookFeatureCppSEH = 0x0200;
@@ -27,9 +28,9 @@ $HookFeatureGo = 0x010000;
 $HookFeatureGoCobraFakeParentProcess = 0x020000;
 
 # The features of the inline-execute-pe BOF when running C/C++ PE file.
-$features_cpp = $HookFeatureRedirectStdio | $HookFeatureStreamingOutput | $HookFeatureCommandLine | $HookFeatureUnload | $HookFeatureCpp | $HookFeatureCppSEH;
+$features_cpp = $HookFeatureRedirectStdio | $HookFeatureStreamingOutput | $HookFeatureCommandLine | $HookFeatureUnload | $HookFeatureVirtualFileSystem | $HookFeatureCpp | $HookFeatureCppSEH;
 # The features of the inline-execute-pe BOF when running golang PE file.
-$features_go = $HookFeatureRedirectStdio | $HookFeatureStreamingOutput | $HookFeatureCommandLine | $HookFeatureUnload | $HookFeatureGo | $HookFeatureGoCobraFakeParentProcess;
+$features_go = $HookFeatureRedirectStdio | $HookFeatureStreamingOutput | $HookFeatureCommandLine | $HookFeatureUnload | $HookFeatureVirtualFileSystem | $HookFeatureGo | $HookFeatureGoCobraFakeParentProcess;
 
 beacon_command_register(
     "inline-execute-cpp",
@@ -108,10 +109,10 @@ alias inline-execute-cpp {
     }
 
     # Parse arguments
-    ($force, $stdinpath, $exepath, $cmdline) = parse_args(@_, $0);
+    ($force, $stdinpath, $vfs, $exepath, $cmdline) = parse_args(@_, $0);
 
     # Invoke inlineexecutepe.o
-    inline_execute_pe($bid, $features_cpp, $force, $stdinpath, $exepath, $cmdline);
+    inline_execute_pe($bid, $features_cpp, $force, $stdinpath, $vfs, $exepath, $cmdline);
 }
 
 alias inline-execute-go {
@@ -125,10 +126,10 @@ alias inline-execute-go {
     }
 
     # Parse arguments
-    ($force, $stdinpath, $exepath, $cmdline) = parse_args(@_, $0);
+    ($force, $stdinpath, $vfs, $exepath, $cmdline) = parse_args(@_, $0);
 
     # Invoke inlineexecutepe.o
-    inline_execute_pe($bid, $features_go, $force, $stdinpath, $exepath, $cmdline);
+    inline_execute_pe($bid, $features_go, $force, $stdinpath, $vfs, $exepath, $cmdline);
 }
 
 alias inline-log-pe {
@@ -179,7 +180,7 @@ alias inline-list-pe {
 #   $1 - @args - Pass @_ in the alias function
 #   $2 - $rawargs - Pass $0 in the alias function
 sub parse_args {
-    local('@args $rawargs $state $skipcount $i $t $force $stdinpath $exepath $cmdline');
+    local('@args $rawargs $state $skipcount $i $t $force $stdinpath $vfs $exepath $cmdline');
     (@args, $rawargs) = @_;
 
     # Parse arguments
@@ -187,6 +188,7 @@ sub parse_args {
     $skipcount = 1;
     $force = false;
     $stdinpath = '';
+    $vfs = '';
     for ($i = 1; $i < size(@args); $i++) {
         $t = @args[$i];
         # trace('[parse_args] Parse arg: ' . $t);
@@ -203,6 +205,11 @@ sub parse_args {
                 $stdinpath = @args[$i];
                 $skipcount += 2;
                 trace('[parse_args] stdinpath was set: ' . $stdinpath);
+            } else if ($t eq '-vf') {
+                $i++;
+                $vfs = @args[$i];
+                $skipcount += 2;
+                trace('[parse_args] vfs was set: ' . $vfs);
             } else {
                 $state = 1;
                 $i--;
@@ -230,7 +237,7 @@ sub parse_args {
     }
     trace('[parse_args] cmdline was set: ' . $cmdline . ' (' . strlen($cmdline) . ')');
 
-    return @($force, $stdinpath, $exepath, $cmdline);
+    return @($force, $stdinpath, $vfs, $exepath, $cmdline);
 }
 
 # Invoke inlineexecutepe.o
@@ -239,11 +246,12 @@ sub parse_args {
 #   $2 - $features
 #   $3 - $force - Whether to force execute the PE file without checking.
 #   $4 - $stdinpath - The path to the stdin file on the attacker machine.
-#   $5 - $exepath - The path to the exe on the attacker machine.
-#   $6 - $cmdline - Raw command-line. e.g. (frpc.exe stcp -s test.com -P 1234 -t 1234 -n "my name" -l 1234)
+#   $5 - $vfs - The virtual file mapping paths.
+#   $6 - $exepath - The path to the exe on the attacker machine.
+#   $7 - $cmdline - Raw command-line. e.g. (frpc.exe stcp -s test.com -P 1234 -t 1234 -n "my name" -l 1234)
 sub inline_execute_pe {
-    local('$bid $features $force $stdinpath $exepath $cmdline $exe $stdin $jobver $tasksize $pid $fspath $fspipe $barch $bof $args');
-    ($bid, $features, $force, $stdinpath, $exepath, $cmdline) = @_;
+    local('$bid $features $force $stdinpath $vfs $exepath $cmdline $exe $stdin $packedvfs $jobver $tasksize $pid $fspath $fspipe $barch $bof $args');
+    ($bid, $features, $force, $stdinpath, $vfs, $exepath, $cmdline) = @_;
 
     # Get the beacon architecture to select the corresponding BOF
     $barch = barch($bid);
@@ -262,6 +270,11 @@ sub inline_execute_pe {
         }
     } else {
         $stdin = '';
+    }
+    if ($vfs ne '') {
+        $packedvfs = pack_vfs($vfs);
+    } else {
+        $packedvfs = '';
     }
     if ($use_job) {
         $jobver = get_job_version();
@@ -297,9 +310,48 @@ sub inline_execute_pe {
     # Execute BOF
     trace('[inline_execute_pe] Begin execute BOF.');
     $bof = read_script_resource('inlineexecutepe.' . $barch . $debug_bof_suffix . '.o');
-    $args = bof_pack($bid, 'iibbzi', $features, $force, $stdin, $exe, $cmdline, $jobver);
+    $args = bof_pack($bid, 'iibbzbi', $features, $force, $stdin, $exe, $cmdline, $packedvfs, $jobver);
     beacon_inline_execute($bid, $bof, 'go', $args);
     trace('[inline_execute_pe] End execute BOF.');
+}
+
+# Pack the virtual files
+# Arguments
+#   $1 - $vfs - The virtual file mapping paths.
+sub pack_vfs {
+    local('$vfs $packer @a $i @names $data');
+    ($vfs) = @_;
+
+    import common.Packer;
+
+    $packer = [new Packer];
+    [$packer little];
+
+    # Split the virtual file mapping
+    @a = split(';', $vfs);
+    # i4(count)
+    [$packer addInt: size(@a)];
+    for ($i = 0; $i < size(@a); $i++) {
+        @names = split(':', @a[$i]);
+        # wsz(path)
+        [$packer addWideString: @names[0]];
+        [$packer addShort: 0];
+        # i4(type)
+        if (size(@names) == 2) {
+            [$packer addInt: 0]; # HookVirtualFileInput
+        } else if (('*' isin @names[0]) || ('?' isin @names[0])) {
+            [$packer addInt: 2]; # HookVirtualFileOutputPattern
+        } else {
+            [$packer addInt: 1]; # HookVirtualFileOutput
+        }
+        # [i4(size)+b(data)]
+        if (size(@names) == 2) {
+            $data = read_file(@names[1]);
+            [$packer addInt: strlen($data)];
+            [$packer addString: $data];
+        }
+    }
+    return [$packer getBytes];
 }
 
 # Get the beacon JobEntry structure version.
@@ -416,36 +468,20 @@ sub skip_arg {
     return $args;
 }
 
-# Convert argument array to command line.
-# Arguments
-#   $1 - args - args to convert to command line. Any double quotes (\") in the command line arguments must be escaped using the backslash (\\) character.
-# Return
-#   The command line.
-sub args_to_command_line {
-    local('$arg $first $cmdline');
-
-    $first = true;
-    foreach $arg ($1) {
-        if ($first) {
-            $first = false;
-        } else {
-            $cmdline = $cmdline . ' ';
-        }
-        $cmdline = $cmdline . strrep($arg, '\\"', '"');
-    }
-
-    return $cmdline;
-}
-
 # Read file.
 # Arguments
 #   $1 - file_name
 # Return
 #   The binary of the file.
 sub read_file {
-    local('$handle $data');
+    local('$error $handle $data');
 
+    checkError($error); # Clear the previous error
     $handle = openf($1);
+    if (checkError($error)) {
+        berror($trace_bid, "Can't open file " . $1 . ': ' . $error);
+        throw "Can't open file " . $1 . ': ' . $error;
+    }
     $data = readb($handle, -1);
     closef($handle);
     trace('[read_file] File was read: ' . $1 . ' (' . format_size(strlen($data)) . ').');

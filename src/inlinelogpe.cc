@@ -17,7 +17,7 @@ extern "C" {
 
 BOOL download_file(IN DWORD chunk_size, IN LPCSTR fileName, IN char fileData[],
                    IN ULONG32 fileLength) {
-  int fileNameLength = strnlen(fileName, 256);
+  int fileNameLength = (int)strnlen(fileName, 256);
 
   // intializes the random number generator
   time_t t;
@@ -112,7 +112,7 @@ BOOL DownloadFile(LPCWSTR filePath, PVOID data, DWORD size) {
     return FALSE;
   }
   // by default, the chunk size is 900 KiB
-  return DownloadFile(0xe1000, fileNameA, (char *)data, size);
+  return download_file(0xe1000, fileNameA, (char *)data, size);
 }
 #else
 BOOL DownloadFile(LPCWSTR filePath, PVOID data, DWORD size) {
