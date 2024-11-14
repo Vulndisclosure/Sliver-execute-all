@@ -219,6 +219,7 @@ BOOL VfsInitialize(HookVirtualFile *files, DWORD count) {
     file = (HookVirtualFile *)malloc(sizeof(HookVirtualFile));
     if (file) {
       *file = files[i];
+      files[i].Data = {};  // Prevent from freeing the input file
       SimpleListAdd(&VirtualFileList, HookVirtualFile *, file);
     } else {
       TRACEF("VfsInitialize: failed to allocate memory for HookVirtualFile.");

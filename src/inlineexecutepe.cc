@@ -537,10 +537,10 @@ HookResult InlineExecutePE(HookFeatures features, bool force, void *stdin_,
 err:
   UnsetLoadedPEImage(loadedPEImage);
   UnloadPEImage(imageBase, seh, features & HookFeatureCppSEH);
-  FreeVirtualFiles(virtualFiles, virtualFileCount);
   FreeOutput(output, jobList, jobId);
   UnloadHook(hookBase);
 out:
+  FreeVirtualFiles(virtualFiles, virtualFileCount);
   if (commandLineW) free(commandLineW);
 
   TRACEF("End run pe.");
