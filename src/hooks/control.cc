@@ -1,6 +1,7 @@
 #include "hooks.h"
 #include "pipeserver.h"
 #include "simplelist.h"
+#include "vfs.h"
 
 typedef int(WINAPI *ExeEntryProc)(void);
 
@@ -199,6 +200,8 @@ HookControlEntry(HookControl id, ...) {
     DWORD stdinSize = (DWORD)va_arg(args, unsigned int);
     LPSTR commandLineA = va_arg(args, char *);
     LPWSTR commandLineW = va_arg(args, wchar_t *);
+    HookVirtualFile *virtualFiles = va_arg(args, HookVirtualFile *);
+    DWORD virtualFileCount = (DWORD)va_arg(args, unsigned int);
     HookOutput *output = (HookOutput *)va_arg(args, void *);
     PVOID *myGetProcAddress = va_arg(args, void **);
     va_end(args);
@@ -213,6 +216,15 @@ HookControlEntry(HookControl id, ...) {
     if (result != HookResultSuccess) {
       HookControlDeleteImpl();
       return result;
+    }
+
+    // Initialize the virtual file system
+    HasVFS = virtualFiles && virtualFileCount &&
+             HasFeatures(HookFeatureVirtualFileSystem);
+    if (HasVFS && !VfsInitialize(virtualFiles, virtualFileCount)) {
+      HookControlDeleteImpl();
+      VfsUninitialize(NULL, NULL);
+      return HookResultErrorInitializeVirtualFileSystem;
     }
 
     return HookResultSuccess;
@@ -234,9 +246,9 @@ HookControlEntry(HookControl id, ...) {
     HookControlCreateSelfUnloadImpl(hookBase, imageBase, seh, peImage,
                                     hCompletionEvent);
     return HookResultSuccess;
-  } else if (id == HookControlDelete) {
-    HookControlDeleteImpl();
-    return HookResultSuccess;
+    // } else if (id == HookControlDelete) {
+    //   HookControlDeleteImpl();
+    //   return HookResultSuccess;
   } else if (id == HookControlStart) {
     // Get arguments
     va_list args;
@@ -248,8 +260,8 @@ HookControlEntry(HookControl id, ...) {
     }
 
     return HookControlStartImpl(entryPoint);
-  } else if (id == HookControlStop) {
-    return HookControlStopImpl();
+    // } else if (id == HookControlStop) {
+    //   return HookControlStopImpl();
   }
   return HookResultErrorInvalidControl;
 }
@@ -274,8 +286,13 @@ DWORD WINAPI SelfUnloadProc(LPVOID lpThreadParameter) {
   TRACEF("7. Free hook and PE image");
 
   // Do HookControl
+  if (HasVFS) {
+    VfsUninitialize(&PEImage->VirtualFiles, &PEImage->VirtualFileCount);
+  }
   HookControlStopImpl();
   HookControlDeleteImpl();
+  TRACEF("PE image result: Stdout: %d, Stderr: %d, VirtualFiles: %d",
+         Output->Stdout->Size, Output->Stderr->Size, PEImage->VirtualFileCount);
 
   // Unload PE image
   PEImage->IsRunning = FALSE;

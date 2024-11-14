@@ -20,7 +20,7 @@ BOOL VfsReadFile(HANDLE hFile, LPVOID buffer, DWORD size, LPDWORD bytesRead);
 BOOL VfsWriteFile(HANDLE hFile, LPCVOID buffer, DWORD size,
                   LPDWORD bytesWritten);
 
-// The VFS version of GetFileSize
-DWORD VfsGetFileSize(HANDLE hFile);
-// The VFS version of SetFilePointer
-DWORD VfsSetFilePointer(HANDLE hFile, LONG distance, DWORD method);
+// Get the state of a virtual file handle
+BOOL VfsQueryObject(HANDLE hFile, PDWORD size, PDWORD position);
+// Set the state of a virtual file handle
+BOOL VfsSetObject(HANDLE hFile, PDWORD position);

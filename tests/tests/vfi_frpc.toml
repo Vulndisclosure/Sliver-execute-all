@@ -1,0 +1,13 @@
+serverAddr  = "debian12-attack.local"
+serverPort  = 7001
+auth.token = "123456"
+log.disablePrintColor = true
+
+[[proxies]]
+name = "target-1-socks5"
+type = "tcp"
+remotePort = 7002
+[proxies.plugin]
+type = "socks5"
+username = "user"
+password = "user123"

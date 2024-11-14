@@ -5,6 +5,7 @@
 #include <stdlib.h>
 
 #include "hash.h"
+#include "vfs.h"
 
 /*==============================================================================
  * Variables
@@ -14,6 +15,7 @@
 HookFeatures Features = (HookFeatures)0;
 LPSTR CommandLineA = NULL;
 LPWSTR CommandLineW = NULL;
+BOOL HasVFS = FALSE;
 HookOutput *Output = NULL;  // owned by LoadedPEImage
 
 // Self Unload (In)
@@ -63,12 +65,10 @@ static HANDLE WINAPI MyGetStdHandle(_In_ DWORD nStdHandle) {
   }
 }
 
-static BOOL WINAPI MyWriteFile(_In_ HANDLE hFile,
-                               _In_reads_bytes_opt_(nNumberOfBytesToWrite)
-                                   LPCVOID lpBuffer,
-                               _In_ DWORD nNumberOfBytesToWrite,
-                               _Out_opt_ LPDWORD lpNumberOfBytesWritten,
-                               _Inout_opt_ LPOVERLAPPED lpOverlapped) {
+static VOID WINAPI MyWriteFile_StreamingOutput(
+    _In_ HANDLE hFile,
+    _In_reads_bytes_opt_(nNumberOfBytesToWrite) LPCVOID lpBuffer,
+    _In_ DWORD nNumberOfBytesToWrite) {
   char *s = (char *)lpBuffer;
   int len = (int)(long)nNumberOfBytesToWrite;
   if (s && len > 0 &&
@@ -97,8 +97,6 @@ static BOOL WINAPI MyWriteFile(_In_ HANDLE hFile,
       _BeaconPrint(type, "%.*s", len, s);
     }
   }
-  return WriteFile(hFile, lpBuffer, nNumberOfBytesToWrite,
-                   lpNumberOfBytesWritten, lpOverlapped);
 }
 
 /* Hacking for golang cobra command line parser */
@@ -287,6 +285,190 @@ static DWORD WINAPI MyTlsAlloc() {
   return i;
 }
 
+/* Virtual File System */
+
+#define TRACEF_VFS(a, ...) TRACEF("[VFS] " a, ##__VA_ARGS__)
+// #define TRACEF_VFS_N(a, ...) TRACEF(a, ##__VA_ARGS__)
+#define TRACEF_VFS_N(a, ...)
+
+static HANDLE WINAPI MyCreateFileA(
+    _In_ LPCSTR lpFileName, _In_ DWORD dwDesiredAccess, _In_ DWORD dwShareMode,
+    _In_opt_ LPSECURITY_ATTRIBUTES lpSecurityAttributes,
+    _In_ DWORD dwCreationDisposition, _In_ DWORD dwFlagsAndAttributes,
+    _In_opt_ HANDLE hTemplateFile) {
+  HANDLE hFile = VfsCreateFileA(lpFileName);
+  if (hFile != INVALID_HANDLE_VALUE) {
+    TRACEF_VFS("CreateFileA was called. (lpFileName: %s, hFile: %p)",
+               lpFileName, hFile);
+    return hFile;
+  }
+  TRACEF_VFS_N("CreateFileA was called. (lpFileName: %s)", lpFileName);
+  return CreateFileA(lpFileName, dwDesiredAccess, dwShareMode,
+                     lpSecurityAttributes, dwCreationDisposition,
+                     dwFlagsAndAttributes, hTemplateFile);
+}
+
+static HANDLE WINAPI MyCreateFileW(
+    _In_ LPCWSTR lpFileName, _In_ DWORD dwDesiredAccess, _In_ DWORD dwShareMode,
+    _In_opt_ LPSECURITY_ATTRIBUTES lpSecurityAttributes,
+    _In_ DWORD dwCreationDisposition, _In_ DWORD dwFlagsAndAttributes,
+    _In_opt_ HANDLE hTemplateFile) {
+  HANDLE hFile = VfsCreateFileW(lpFileName);
+  if (hFile != INVALID_HANDLE_VALUE) {
+    TRACEF_VFS("CreateFileW was called. (lpFileName: %ws, hFile: %p)",
+               lpFileName, hFile);
+    return hFile;
+  }
+  TRACEF_VFS_N("CreateFileW was called. (lpFileName: %ws)", lpFileName);
+  return CreateFileW(lpFileName, dwDesiredAccess, dwShareMode,
+                     lpSecurityAttributes, dwCreationDisposition,
+                     dwFlagsAndAttributes, hTemplateFile);
+}
+
+static BOOL WINAPI MyCloseHandle(_In_ _Post_ptr_invalid_ HANDLE hObject) {
+  if (VfsCloseHandle(hObject)) {
+    TRACEF_VFS("CloseHandle was called. (hObject: %p)", hObject);
+    return TRUE;
+  }
+  TRACEF_VFS_N("CloseHandle was called. (hObject: %p)", hObject);
+  return CloseHandle(hObject);
+}
+
+static _Must_inspect_result_ BOOL WINAPI MyReadFile(
+    _In_ HANDLE hFile,
+    _Out_writes_bytes_to_opt_(nNumberOfBytesToRead, *lpNumberOfBytesRead)
+        __out_data_source(FILE) LPVOID lpBuffer,
+    _In_ DWORD nNumberOfBytesToRead, _Out_opt_ LPDWORD lpNumberOfBytesRead,
+    _Inout_opt_ LPOVERLAPPED lpOverlapped) {
+  if (VfsReadFile(hFile, lpBuffer, nNumberOfBytesToRead, lpNumberOfBytesRead)) {
+    TRACEF_VFS("ReadFile was called. (hFile: %p, size: %d, bytesRead: %d)",
+               hFile, nNumberOfBytesToRead,
+               lpNumberOfBytesRead ? *lpNumberOfBytesRead : 0);
+    return TRUE;
+  }
+  TRACEF_VFS_N("ReadFile was called. (hFile: %p, size: %d)", hFile,
+               nNumberOfBytesToRead);
+  return ReadFile(hFile, lpBuffer, nNumberOfBytesToRead, lpNumberOfBytesRead,
+                  lpOverlapped);
+}
+
+static BOOL WINAPI MyWriteFile(_In_ HANDLE hFile,
+                               _In_reads_bytes_opt_(nNumberOfBytesToWrite)
+                                   LPCVOID lpBuffer,
+                               _In_ DWORD nNumberOfBytesToWrite,
+                               _Out_opt_ LPDWORD lpNumberOfBytesWritten,
+                               _Inout_opt_ LPOVERLAPPED lpOverlapped) {
+  if (HasFeatures(HookFeatureStreamingOutput)) {
+    MyWriteFile_StreamingOutput(hFile, lpBuffer, nNumberOfBytesToWrite);
+  }
+  if (!HasVFS) {
+    return WriteFile(hFile, lpBuffer, nNumberOfBytesToWrite,
+                     lpNumberOfBytesWritten, lpOverlapped);
+  }
+  if (VfsWriteFile(hFile, lpBuffer, nNumberOfBytesToWrite,
+                   lpNumberOfBytesWritten)) {
+    TRACEF_VFS("WriteFile was called. (hFile: %p, size: %d, bytesWritten: %d)",
+               hFile, nNumberOfBytesToWrite,
+               lpNumberOfBytesWritten ? *lpNumberOfBytesWritten : 0);
+    return TRUE;
+  }
+  TRACEF_VFS_N("WriteFile was called. (hFile: %p, size: %d)", hFile,
+               nNumberOfBytesToWrite);
+  return WriteFile(hFile, lpBuffer, nNumberOfBytesToWrite,
+                   lpNumberOfBytesWritten, lpOverlapped);
+}
+
+static BOOL WINAPI MyGetFileInformationByHandle(
+    _In_ HANDLE hFile, _Out_ LPBY_HANDLE_FILE_INFORMATION lpFileInformation) {
+  DWORD size = INVALID_FILE_SIZE;
+  if (VfsQueryObject(hFile, &size, NULL)) {
+    *lpFileInformation = {};
+    lpFileInformation->dwFileAttributes = FILE_ATTRIBUTE_NORMAL;
+    lpFileInformation->nFileSizeLow = size;
+    TRACEF_VFS("GetFileInformationByHandle was called. (hFile: %p, size: %d)",
+               hFile, size);
+    return TRUE;
+  }
+  TRACEF_VFS_N("GetFileInformationByHandle was called. (hFile: %p)", hFile);
+  return GetFileInformationByHandle(hFile, lpFileInformation);
+}
+
+static DWORD WINAPI MyGetFileSize(_In_ HANDLE hFile,
+                                  _Out_opt_ LPDWORD lpFileSizeHigh) {
+  DWORD size = INVALID_FILE_SIZE;
+  if (VfsQueryObject(hFile, &size, NULL)) {
+    if (lpFileSizeHigh) {
+      *lpFileSizeHigh = 0;
+    }
+    TRACEF_VFS("GetFileSize was called. (hFile: %p, size: %d)", hFile, size);
+    return size;
+  }
+  TRACEF_VFS_N("GetFileSize was called. (hFile: %p)", hFile);
+  return GetFileSize(hFile, lpFileSizeHigh);
+}
+
+static BOOL WINAPI MyGetFileSizeEx(_In_ HANDLE hFile,
+                                   _Out_ PLARGE_INTEGER lpFileSize) {
+  DWORD size = INVALID_FILE_SIZE;
+  if (VfsQueryObject(hFile, &size, NULL)) {
+    lpFileSize->QuadPart = size;
+    TRACEF_VFS("GetFileSizeEx was called. (hFile: %p, size: %d)", hFile, size);
+    return TRUE;
+  }
+  TRACEF_VFS_N("GetFileSizeEx was called. (hFile: %p)", hFile);
+  return GetFileSizeEx(hFile, lpFileSize);
+}
+
+static DWORD WINAPI MyGetFileType(_In_ HANDLE hFile) {
+  if (VfsQueryObject(hFile, NULL, NULL)) {
+    TRACEF_VFS("GetFileType was called. (hFile: %p)", hFile);
+    return FILE_TYPE_DISK;
+  }
+  TRACEF_VFS_N("GetFileType was called. (hFile: %p)", hFile);
+  return GetFileType(hFile);
+}
+
+static BOOL WINAPI MySetEndOfFile(_In_ HANDLE hFile) {
+  // TODO: implement
+  TRACEF("SetEndOfFile was called. (hFile: %p)", hFile);
+  if (VfsQueryObject(hFile, NULL, NULL)) {
+    __debugbreak();
+  }
+  return SetEndOfFile(hFile);
+}
+
+static DWORD WINAPI MySetFilePointer(_In_ HANDLE hFile,
+                                     _In_ LONG lDistanceToMove,
+                                     _Inout_opt_ PLONG lpDistanceToMoveHigh,
+                                     _In_ DWORD dwMoveMethod) {
+  // TODO: implement
+  // TRACEF(
+  //    "SetFilePointer was called. (hFile: %p, lDistanceToMove: %d, "
+  //    "dwMoveMethod: %d)",
+  //    hFile, lDistanceToMove, dwMoveMethod);
+  if (VfsQueryObject(hFile, NULL, NULL)) {
+    __debugbreak();
+  }
+  return SetFilePointer(hFile, lDistanceToMove, lpDistanceToMoveHigh,
+                        dwMoveMethod);
+}
+
+static BOOL WINAPI MySetFilePointerEx(_In_ HANDLE hFile,
+                                      _In_ LARGE_INTEGER liDistanceToMove,
+                                      _Out_opt_ PLARGE_INTEGER lpNewFilePointer,
+                                      _In_ DWORD dwMoveMethod) {
+  // TODO: implement
+  // TRACEF(
+  //    "SetFilePointerEx was called. (hFile: %p, liDistanceToMove: %d, "
+  //    "dwMoveMethod: %d)",
+  //    hFile, liDistanceToMove.LowPart, dwMoveMethod);
+  if (VfsQueryObject(hFile, NULL, NULL)) {
+    __debugbreak();
+  }
+  return SetFilePointerEx(hFile, liDistanceToMove, lpNewFilePointer,
+                          dwMoveMethod);
+}
+
 /* GetProcAddress */
 
 HMODULE Kernel32Base = NULL;
@@ -364,6 +546,46 @@ FARPROC WINAPI MyGetProcAddress(_In_ HMODULE hModule, _In_ LPCSTR lpProcName) {
       }
       if (hash == HashCT("TlsAlloc")) {
         return (FARPROC)(PVOID)MyTlsAlloc;
+      }
+    }
+
+    // Virtual File System
+    if (HasVFS) {
+      if (hash == HashCT("CreateFileA")) {
+        return (FARPROC)(PVOID)MyCreateFileA;
+      }
+      if (hash == HashCT("CreateFileW")) {
+        return (FARPROC)(PVOID)MyCreateFileW;
+      }
+      if (hash == HashCT("CloseHandle")) {
+        return (FARPROC)(PVOID)MyCloseHandle;
+      }
+      if (hash == HashCT("ReadFile")) {
+        return (FARPROC)(PVOID)MyReadFile;
+      }
+      if (hash == HashCT("WriteFile")) {
+        return (FARPROC)(PVOID)MyWriteFile;
+      }
+      if (hash == HashCT("GetFileInformationByHandle")) {
+        return (FARPROC)(PVOID)MyGetFileInformationByHandle;
+      }
+      if (hash == HashCT("GetFileSize")) {
+        return (FARPROC)(PVOID)MyGetFileSize;
+      }
+      if (hash == HashCT("GetFileSizeEx")) {
+        return (FARPROC)(PVOID)MyGetFileSizeEx;
+      }
+      if (hash == HashCT("GetFileType")) {
+        return (FARPROC)(PVOID)MyGetFileType;
+      }
+      if (hash == HashCT("SetEndOfFile")) {
+        return (FARPROC)(PVOID)MySetEndOfFile;
+      }
+      if (hash == HashCT("SetFilePointer")) {
+        return (FARPROC)(PVOID)MySetFilePointer;
+      }
+      if (hash == HashCT("SetFilePointerEx")) {
+        return (FARPROC)(PVOID)MySetFilePointerEx;
       }
     }
 

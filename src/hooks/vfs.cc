@@ -50,7 +50,8 @@ static HookVirtualFile *VfsLookupByPattern(LPCWSTR fileName) {
 }
 
 // Create a empty virtual file with the specified file name
-static HookVirtualFile *VfsAllocateFile(LPCWSTR fileName, DWORD fileNameCch) {
+static HookVirtualFile *VfsAllocateFile(LPCWSTR fileName, DWORD fileNameCch,
+                                        HookVirtualFileType type) {
   HookVirtualFile *file = (HookVirtualFile *)malloc(sizeof(HookVirtualFile));
   if (!file) {
     TRACEF("VfsAllocateFile: failed to allocate memory for HookVirtualFile.");
@@ -64,6 +65,11 @@ static HookVirtualFile *VfsAllocateFile(LPCWSTR fileName, DWORD fileNameCch) {
   }
   memcpy(file->FileName, fileName, fileNameCch * sizeof(WCHAR));
   TRACEF("VfsAllocateFile: HookVirtualFile was created for %ws.", fileName);
+  file->Type = type;
+  SpinLock(VirtualFileListLock,
+           SimpleListAdd(&VirtualFileList, HookVirtualFile *, file));
+  TRACEF(
+      "VfsAllocateFile: HookVirtualFile was added to the virtual file list.");
   return file;
 }
 
@@ -87,6 +93,20 @@ static VirtualFileObject *VfsAllocateObject(HookVirtualFile *file) {
   object->File = file;
   TRACEF("VfsAllocateObject: VirtualFileObject was created for %ws.",
          file->FileName);
+  SpinLock(VirtualFileObjectListLock, {
+    BOOL inserted = FALSE;
+    SimpleListForEach(&VirtualFileObjectList, VirtualFileObject *, o, {
+      if (!*o) {
+        *o = object;
+        inserted = TRUE;
+        break;
+      }
+    });
+    if (!inserted) {
+      SimpleListAdd(&VirtualFileObjectList, VirtualFileObject *, object);
+    }
+  });
+  TRACEF("VfsAllocateObject: VirtualFileObject was added to the object list.");
   return object;
 }
 
@@ -122,13 +142,49 @@ static VirtualFileObject **VfsHandleToObject(HANDLE hFile) {
       }
     });
   });
+#ifdef _DEBUG
+  if (object) {
+    VirtualFileObject *o = *object;
+    if (!o) {
+      TRACEF("VfsHandleToObject: found NULL object for %p.", hFile);
+      __debugbreak();
+    }
+    if (!o->File) {
+      TRACEF("VfsHandleToObject: found object with NULL file for %p.", hFile);
+      __debugbreak();
+    }
+    if (!o->File->Data.Buffer) {
+      TRACEF("VfsHandleToObject: found object with NULL file data for %p.",
+             hFile);
+      __debugbreak();
+    }
+    // TRACEF("VfsHandleToObject: found object for %ws.", o->File->FileName);
+  }
+#endif
   return object;
 }
 
 // Convert the VirtualFileObject to the handle
 static HANDLE VfsObjectToHandle(VirtualFileObject *object) {
+  if (!object) {
+    return INVALID_HANDLE_VALUE;
+  }
   return (HANDLE)((SIZE_T)object | HANDLE_MARK);
 }
+
+#ifdef _DEBUG
+static DWORD VfsCountAliveObjects() {
+  DWORD count = 0;
+  SpinLock(VirtualFileObjectListLock, {
+    SimpleListForEach(&VirtualFileObjectList, VirtualFileObject *, o, {
+      if (*o) {
+        count++;
+      }
+    });
+  });
+  return count;
+}
+#endif
 
 BOOL VfsInitialize(HookVirtualFile *files, DWORD count) {
   if (!files || !count) {
@@ -228,16 +284,19 @@ HANDLE VfsCreateFileW(LPCWSTR fileName) {
   if (VfsLookupByPattern(fullPath)) {
     TRACEF("VfsCreateFileW: %ws was found in the virtual file pattern list.",
            fullPath);
-    file = VfsAllocateFile(fullPath, MAX_PATH);
-    if (file) {
-      file->Type = HookVirtualFileOutput;
-      SimpleListAdd(&VirtualFileList, HookVirtualFile *, file);
-    }
+    file = VfsAllocateFile(fullPath, MAX_PATH, HookVirtualFileOutput);
   }
 
   // Allocate object for the virtual file
   if (file) {
-    return VfsAllocateObject(file);
+    HANDLE hFile = VfsObjectToHandle(VfsAllocateObject(file));
+#ifdef _DEBUG
+    TRACEF("VfsCreateFileW: %ws was opened at %p. (%d objects alive)", fullPath,
+           hFile, VfsCountAliveObjects());
+#else
+    TRACEF("VfsCreateFileW: %ws was opened at %p.", fullPath, hFile);
+#endif
+    return hFile;
   }
 
   // Not a virtual file
@@ -265,9 +324,14 @@ BOOL VfsCloseHandle(HANDLE hFile) {
 
   // Free the virtual file object
   HookVirtualFile *file = (*object)->File;
-  free(*object);
+  VfsFreeObject(*object);
   *object = NULL;
+#ifdef _DEBUG
+  TRACEF("VfsCloseHandle: %ws was closed. (%d objects alive)", file->FileName,
+         VfsCountAliveObjects());
+#else
   TRACEF("VfsCloseHandle: %ws was closed.", file->FileName);
+#endif
   return TRUE;
 }
 
@@ -372,6 +436,37 @@ BOOL VfsWriteFile(HANDLE hFile, LPCVOID buffer, DWORD size,
                     t = VfsWriteFileNoLock(object, buffer, size)));
   if (bytesWritten) {
     *bytesWritten = t;
+  }
+  return TRUE;
+}
+
+BOOL VfsQueryObject(HANDLE hFile, PDWORD size, PDWORD position) {
+  // Get the virtual file object
+  VirtualFileObject *object = DEREF(VfsHandleToObject(hFile));
+  if (!object) {
+    return FALSE;
+  }
+
+  // Get the file size and position
+  if (size) {
+    *size = (DWORD)object->File->Data.Size;
+  }
+  if (position) {
+    *position = object->Position;
+  }
+  return TRUE;
+}
+
+BOOL VfsSetObject(HANDLE hFile, PDWORD position) {
+  // Get the virtual file object
+  VirtualFileObject *object = DEREF(VfsHandleToObject(hFile));
+  if (!object) {
+    return FALSE;
+  }
+
+  // Set the file position
+  if (position) {
+    object->Position = *position;
   }
   return TRUE;
 }

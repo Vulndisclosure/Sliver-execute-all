@@ -84,6 +84,7 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
+      <AdditionalDependencies>$(CoreLibraryDependencies);%(AdditionalDependencies);shlwapi.lib</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -104,6 +105,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
       <ImageHasSafeExceptionHandlers />
+      <AdditionalDependencies>$(CoreLibraryDependencies);%(AdditionalDependencies);shlwapi.lib</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -119,6 +121,7 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
+      <AdditionalDependencies>$(CoreLibraryDependencies);%(AdditionalDependencies);shlwapi.lib</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -138,20 +141,26 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
+      <AdditionalDependencies>$(CoreLibraryDependencies);%(AdditionalDependencies);shlwapi.lib</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\src\hooks\control.cc" />
     <ClCompile Include="..\..\src\hooks\hooks.cc" />
+    <ClCompile Include="..\..\src\hooks\log.cc" />
     <ClCompile Include="..\..\src\hooks\pipeserver.cc" />
     <ClCompile Include="..\..\src\hooks\simplelist1.cc" />
     <ClCompile Include="..\..\src\hooks\simplelist2.cc" />
+    <ClCompile Include="..\..\src\hooks\vfs.cc" />
     <ClCompile Include="dllmain.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\src\hooks\hash.h" />
     <ClInclude Include="..\..\src\hooks\hooks.h" />
     <ClInclude Include="..\..\src\hooks\hookspub.h" />
     <ClInclude Include="..\..\src\hooks\pipeserver.h" />
     <ClInclude Include="..\..\src\hooks\simplelist.h" />
+    <ClInclude Include="..\..\src\hooks\vfs.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

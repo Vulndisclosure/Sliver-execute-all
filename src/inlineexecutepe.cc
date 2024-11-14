@@ -268,6 +268,82 @@ void FreeOutput(HookOutput *output, JobEntry **jobList, int jobId) {
   if (jobList) SimpleRemoveJob(jobList, jobId);
 }
 
+BOOL UnpackVirtualFiles(void *packedVirtualFiles,
+                        HookVirtualFile **virtualFiles, PDWORD count) {
+  *virtualFiles = NULL;
+  *count = 0;
+  if (!packedVirtualFiles) {
+    return TRUE;
+  }
+
+  // Read count
+  PBYTE p = (PBYTE)packedVirtualFiles;
+  DWORD n = *count = *(PDWORD)p;
+  p += 4;
+  if (n == 0) {
+    return TRUE;
+  }
+
+  // Allocate virtual files
+  HookVirtualFile *files = *virtualFiles =
+      (HookVirtualFile *)calloc(n, sizeof(HookVirtualFile));
+  if (!*virtualFiles) {
+    PRINTF_ERR("Failed to allocate virtual files.");
+    return FALSE;
+  }
+
+  // Read virtual files
+  for (DWORD i = 0; i < n; i++) {
+    // Read path
+    LPWSTR path = (LPWSTR)p;
+    DWORD pathSize = (DWORD)(wcslen(path) + 1) * sizeof(WCHAR);
+    if (pathSize > MAX_PATH * sizeof(WCHAR)) {
+      PRINTF_ERR("Virtual file path is too long.");
+      return FALSE;
+    }
+    WCHAR fullPath[MAX_PATH];
+    if (!GetFullPathNameW(path, MAX_PATH, fullPath, NULL)) {
+      PRINTF_ERR("Failed to get full path of virtual file %ws.", path);
+      return FALSE;
+    }
+    memcpy(files[i].FileName, fullPath, MAX_PATH);
+    p += pathSize;
+
+    // Read type
+    files[i].Type = (HookVirtualFileType)(*(PDWORD)p);
+    p += 4;
+
+    // Read data
+    if (files[i].Type != HookVirtualFileOutputPattern) {
+      // See VfsAllocateFile, also create data for output file
+      if (!SimpleListAlloc(&files[i].Data, 4)) {
+        PRINTF_ERR("Failed to allocate virtual file data.");
+        return FALSE;
+      }
+      if (files[i].Type == HookVirtualFileOutput) {
+        continue;
+      }
+      DWORD size = *(PDWORD)p;
+      p += 4;
+      if (!SimpleListAddBuffer(&files[i].Data, p, size)) {
+        PRINTF_ERR("Failed to add buffer to virtual file data.");
+        return FALSE;
+      }
+    }
+  }
+
+  return TRUE;
+}
+
+void FreeVirtualFiles(HookVirtualFile *virtualFiles, DWORD count) {
+  if (virtualFiles) {
+    for (DWORD i = 0; i < count; i++) {
+      SimpleListFree(&virtualFiles[i].Data);
+    }
+    free(virtualFiles);
+  }
+}
+
 BOOL LoadPEImage(PVOID peImage, PVOID myGetProcAddress, BOOL enableSEH,
                  PVOID *imageBase, PVOID *entryPoint, PVOID *seh) {
   DWORD imageSize =
@@ -346,10 +422,17 @@ void UnsetLoadedPEImage(LoadedPEImage *peImage) {
   }
 }
 
+/*
+packedVirtualFiles: i4(count)+
+wsz(path1)+i4(type1)+[i4(size1)+b(data1)]+
+wsz(path2)+i4(type2)+[i4(size2)+b(data2)]+...
+*/
+
 HookResult InlineExecutePE(HookFeatures features, bool force, void *stdin_,
                            int stdinSize, void *peImage, int peImageSize,
-                           char *commandLineA, int jobVersion,
-                           void *hCompletionEvent, void **loadedImageBase) {
+                           char *commandLineA, void *packedVirtualFiles,
+                           int jobVersion, void *hCompletionEvent,
+                           void **loadedImageBase) {
   TRACEF("Begin run pe.");
 
   // Load hook
@@ -361,6 +444,8 @@ HookResult InlineExecutePE(HookFeatures features, bool force, void *stdin_,
   HookOutput *output = NULL;   // owned by LoadedPEImage
   JobEntry **jobList = NULL;
   int jobId = 0;
+  HookVirtualFile *virtualFiles = NULL;
+  DWORD virtualFileCount = 0;
   PVOID myGetProcAddress = NULL;
   HookResult result = HookResultErrorInvalidControl;
 
@@ -401,9 +486,11 @@ HookResult InlineExecutePE(HookFeatures features, bool force, void *stdin_,
   if (!CreateOutput(&output, features & HookFeatureCpp, jobVersion,
                     commandLineA, &jobList, &jobId))
     goto err;
-  result =
-      HookControlEntry(HookControlCreate, features, stdin_, stdinSize,
-                       commandLineA, commandLineW, output, &myGetProcAddress);
+  if (!UnpackVirtualFiles(packedVirtualFiles, &virtualFiles, &virtualFileCount))
+    goto err;
+  result = HookControlEntry(HookControlCreate, features, stdin_, stdinSize,
+                            commandLineA, commandLineW, virtualFiles,
+                            virtualFileCount, output, &myGetProcAddress);
   if (result != HookResultSuccess) {
     PrintHookResultError(result, HookControlCreate);
     goto err;
@@ -450,6 +537,7 @@ HookResult InlineExecutePE(HookFeatures features, bool force, void *stdin_,
 err:
   UnsetLoadedPEImage(loadedPEImage);
   UnloadPEImage(imageBase, seh, features & HookFeatureCppSEH);
+  FreeVirtualFiles(virtualFiles, virtualFileCount);
   FreeOutput(output, jobList, jobId);
   UnloadHook(hookBase);
 out:

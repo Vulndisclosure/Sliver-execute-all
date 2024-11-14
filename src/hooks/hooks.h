@@ -28,6 +28,7 @@
 extern HookFeatures Features;
 extern LPSTR CommandLineA;
 extern LPWSTR CommandLineW;
+extern BOOL HasVFS;
 extern HookOutput *Output;  // owned by LoadedPEImage
 
 #define HasFeatures(x) ((Features & (x)) == (x))

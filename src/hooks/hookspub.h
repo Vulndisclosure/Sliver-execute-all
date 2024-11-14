@@ -78,6 +78,7 @@ typedef enum _HookResult {
   HookResultErrorCreatePipeServer,
   HookResultErrorCreateSimpleList,
   HookResultErrorGetModuleHandle,
+  HookResultErrorInitializeVirtualFileSystem,
   HookResultErrorStartNewThread,
 
   HookResultSuccess = 0,
