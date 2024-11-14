@@ -175,6 +175,17 @@ alias inline-list-pe {
     trace('[inline-list-pe] End execute BOF.');
 }
 
+on beacon_output {
+    local('$bid $message $when $imagebase');
+    ($bid, $message, $when) = @_;
+
+    if ('Mark to trigger inline-log-pe: 0x' isin $message) {
+        $imagebase = strrep($message, 'Mark to trigger inline-log-pe: 0x', '');
+        blog($bid, 'Found inline-log-pe mark: 0x' . $imagebase);
+        fireAlias($bid, 'inline-log-pe', $imagebase)
+    }
+}
+
 # Parse arguments of inline-execute-xx
 # Arguments
 #   $1 - @args - Pass @_ in the alias function

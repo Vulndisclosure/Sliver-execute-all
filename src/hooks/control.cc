@@ -306,6 +306,11 @@ DWORD WINAPI SelfUnloadProc(LPVOID lpThreadParameter) {
   }
   VirtualFree(ImageBase, 0, MEM_RELEASE);
   TRACEF("The entire PE image was unloaded.");
+  if (Output->JobOutputWriteHandle) {
+    // Only when the job api is available, the client will automatically receive
+    // the logs.
+    PRINTF("Mark to trigger inline-log-pe: 0x%p", ImageBase);
+  }
 
   // Unload hook
   if (CompletionEventHandle) {
