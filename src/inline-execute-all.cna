@@ -180,7 +180,7 @@ on beacon_output {
     ($bid, $message, $when) = @_;
 
     if ('Mark to trigger inline-log-pe: 0x' isin $message) {
-        $imagebase = strrep($message, 'Mark to trigger inline-log-pe: 0x', '');
+        $imagebase = matches($message, 'Mark to trigger inline-log-pe:\s*(0x[0-9A-Fa-f]+)')[0];
         blog($bid, 'Found inline-log-pe mark: 0x' . $imagebase);
         fireAlias($bid, 'inline-log-pe', $imagebase)
     }
