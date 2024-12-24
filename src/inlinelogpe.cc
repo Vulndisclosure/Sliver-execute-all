@@ -154,6 +154,10 @@ void InlineLogPE(void *imageBase) {
     imageBase = data->LastImageBase;
     PRINTF("Use the last image base %p.", imageBase);
   }
+  if (!imageBase) {
+    PRINTF_ERR("The image base is NULL.");
+    goto out;
+  }
   for (index = 0; index < LoadedPEImageMax; index++) {
     if (data->PEImages[index].ImageBase == imageBase) {
       break;
