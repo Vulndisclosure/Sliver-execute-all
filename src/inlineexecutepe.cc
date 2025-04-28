@@ -97,9 +97,13 @@ BOOL CheckPEImage(void *peImage, int peImageSize, BOOL force) {
     goto invalidMagic;
   }
 
-  // Check the optional header (TLS and .NET)
+  // Check the optional header (Reloc, TLS and .NET)
   if (nt->OptionalHeader.Magic != IMAGE_NT_OPTIONAL_HDR_MAGIC) {
     goto invalidMagic;
+  }
+  if (!(nt->OptionalHeader.DllCharacteristics &
+        IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE)) {
+    goto fixedBase;
   }
   if (nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_TLS]
           .VirtualAddress) {
@@ -152,6 +156,9 @@ tooSmall:
   return FALSE;
 invalidMagic:
   PRINTF_ERR("Invalid PE headers magic.");
+  return FALSE;
+fixedBase:
+  PRINTF_ERR("The PE image has fixed image base.");
   return FALSE;
 tls:
   PRINTF_ERR("Static TLS and TLS callbacks are not supported.");
