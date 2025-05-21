@@ -334,7 +334,7 @@ sub inline_execute_pe {
 # Arguments
 #   $1 - $vfs - The virtual file mapping paths.
 sub pack_vfs {
-    local('$vfs $packer @a $i @names $data');
+    local('$vfs $packer @a $i $t @names $data');
     ($vfs) = @_;
 
     import common.Packer;
@@ -347,7 +347,12 @@ sub pack_vfs {
     # i4(count)
     [$packer addInt: size(@a)];
     for ($i = 0; $i < size(@a); $i++) {
-        @names = split(':', @a[$i]);
+        $t = find(@a[$i], ':');
+        if ($t) {
+            @names = @(substr(@a[$i], 0, $t), substr(@a[$i], $t + 1));
+        } else {
+            @names = @(@a[$i]);
+        }
         # wsz(path)
         [$packer addWideString: @names[0]];
         [$packer addShort: 0];
