@@ -54,6 +54,9 @@ bin/inlinelistpe.x86.o bin/inlinelistpe.x86d.o bin/inlinelistpe.x64.o bin/inline
 rm tools/fixbof
 
 cp -f src/inline-execute-all.cna bin/inline-execute-all.cna
+mkdir -p bin/inline-execute-all
+mv bin/*.o bin/inline-execute-all
+mv bin/*.bin bin/inline-execute-all
 }
 
 create_linker_ld() {

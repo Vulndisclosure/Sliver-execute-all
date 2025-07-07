@@ -32,6 +32,8 @@ $features_cpp = $HookFeatureRedirectStdio | $HookFeatureStreamingOutput | $HookF
 # The features of the inline-execute-pe BOF when running golang PE file.
 $features_go = $HookFeatureRedirectStdio | $HookFeatureStreamingOutput | $HookFeatureCommandLine | $HookFeatureUnload | $HookFeatureVirtualFileSystem | $HookFeatureGo | $HookFeatureGoCobraFakeParentProcess;
 
+$bof_base_dir = './inline-execute-all/';
+
 beacon_command_register(
     "inline-execute-cpp",
     "Load and run a C/C++ PE file in memory.",
@@ -157,7 +159,7 @@ alias inline-log-pe {
 
     # Execute BOF
     trace('[inline-log-pe] Begin execute BOF.');
-    $bof = read_script_resource('inlinelogpe.' . $barch . $debug_bof_suffix . '.o');
+    $bof = read_script_resource($bof_base_dir . 'inlinelogpe.' . $barch . $debug_bof_suffix . '.o');
     $args = bof_pack($bid, 'z', $imagebase);
     beacon_inline_execute($bid, $bof, 'go', $args);
     trace('[inline-log-pe] End execute BOF.');
@@ -174,7 +176,7 @@ alias inline-list-pe {
 
     # Execute BOF
     trace('[inline-list-pe] Begin execute BOF.');
-    $bof = read_script_resource('inlinelistpe.' . $barch . $debug_bof_suffix . '.o');
+    $bof = read_script_resource($bof_base_dir . 'inlinelistpe.' . $barch . $debug_bof_suffix . '.o');
     beacon_inline_execute($bid, $bof, 'go', $null);
     trace('[inline-list-pe] End execute BOF.');
 }
@@ -307,7 +309,7 @@ sub inline_execute_pe {
 
         # Inject file server shellcode
         $pid = int(binfo($bid, 'pid'));
-        $fspath = script_resource('fileserver.' . $barch . $debug_bof_suffix . '.bin');
+        $fspath = script_resource($bof_base_dir . 'fileserver.' . $barch . $debug_bof_suffix . '.bin');
         bshinject($bid, $pid, $barch, $fspath);
         trace('[inline_execute_pe] Injecting file server shellcode.');
 
@@ -324,7 +326,7 @@ sub inline_execute_pe {
 
     # Execute BOF
     trace('[inline_execute_pe] Begin execute BOF.');
-    $bof = read_script_resource('inlineexecutepe.' . $barch . $debug_bof_suffix . '.o');
+    $bof = read_script_resource($bof_base_dir . 'inlineexecutepe.' . $barch . $debug_bof_suffix . '.o');
     $args = bof_pack($bid, 'iibbzbi', $features, $force, $stdin, $exe, $cmdline, $packedvfs, $jobver);
     beacon_inline_execute($bid, $bof, 'go', $args);
     trace('[inline_execute_pe] End execute BOF.');

@@ -56,6 +56,9 @@ bin\inlinelistpe.x86.o bin\inlinelistpe.x86d.o bin\inlinelistpe.x64.o bin\inline
 del tools\fixbof.exe *.obj
 
 copy /Y src\inline-execute-all.cna bin\inline-execute-all.cna
+if not exist "bin\inline-execute-all" mkdir "bin\inline-execute-all"
+move /Y bin\*.o bin\inline-execute-all
+move /Y bin\*.bin bin\inline-execute-all
 
 endlocal
 
