@@ -49,9 +49,10 @@ void BeaconPrintfPostMsg(int type, const char *fmt, ...) {
   // Post message
   OutputDebugStringA(str);
   if (Output->JobOutputWriteHandle) {
+    DWORD t = 0;  // From MSDN: Windows 7: This parameter can not be NULL.
     SpinLock(Output->JobOutputLock,
              result = WriteFile(Output->JobOutputWriteHandle, str, strCb - 1,
-                                NULL, NULL));
+                                &t, NULL));
     if (!result) goto err;
   } else {
     log = {type, strCb - 2, str};

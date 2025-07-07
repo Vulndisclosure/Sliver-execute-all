@@ -74,8 +74,9 @@ static VOID WINAPI MyWriteFile_StreamingOutput(
   if (s && len > 0 &&
       (hFile == StdoutPipe.WriteHandle || hFile == StderrPipe.WriteHandle)) {
     if (Output->JobOutputWriteHandle) {
+      DWORD t = 0;  // From MSDN: Windows 7: This parameter can not be NULL.
       SpinLock(Output->JobOutputLock,
-               WriteFile(Output->JobOutputWriteHandle, s, len, NULL, NULL));
+               WriteFile(Output->JobOutputWriteHandle, s, len, &t, NULL));
 #ifdef _DEBUG
       char *buffer = (char *)malloc(len + 1);
       if (buffer) {
