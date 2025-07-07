@@ -4,7 +4,8 @@
 #include <windows.h>
 
 #ifdef _WIN64
-#define GLOBAL_SHARED_DATA_ADDRESS 0x00003242F6070000
+// Maximum user space address in Windows 7 x64 is 0x000007FF`FFFFFFFF
+#define GLOBAL_SHARED_DATA_ADDRESS 0x00000242F6070000
 #define GLOBAL_SHARED_DATA_MARKER 0x414A2A2E6294742D
 #define MAX_ATTEMPTS 5
 #else
@@ -27,6 +28,9 @@ GlobalSharedData *GetGlobalSharedData() {
   PVOID address = (PVOID)GLOBAL_SHARED_DATA_ADDRESS;
   PVOID candidateAddress = NULL;
   for (int i = 0; i < MAX_ATTEMPTS; i++) {
+    // If lpAddress specifies an address above the highest memory address
+    // accessible to the process, the function fails with
+    // ERROR_INVALID_PARAMETER.
     MEMORY_BASIC_INFORMATION mbi;
     if (!VirtualQuery(address, &mbi, sizeof(mbi))) {
       return NULL;
