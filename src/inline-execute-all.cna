@@ -34,6 +34,11 @@ $features_go = $HookFeatureRedirectStdio | $HookFeatureStreamingOutput | $HookFe
 
 $bof_base_dir = './inline-execute-all/';
 
+if ([[getAggressorClient() getAliases] isAlias: 'inline-execute-cpp']) {
+    show_error('inline-execute-all was already loaded. Please unload the old one first.');
+    throw 'inline-execute-all was already loaded. Please unload the old one first.';
+}
+
 beacon_command_register(
     "inline-execute-cpp",
     "Load and run a C/C++ PE file in memory.",
