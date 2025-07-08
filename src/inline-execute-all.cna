@@ -144,12 +144,18 @@ alias inline-execute-go {
 }
 
 alias inline-log-pe {
-    local('$bid $imagebase $barch $bof $args');
+    local('$bid $imagebase $silent $barch $bof $args');
     ($bid, $imagebase) = @_;
     trace_init($bid);
 
     # Parse arguments
+    $silent = false;
     if (size(@_) > 1) {
+        if (size(@_) > 2 && @_[2] eq 'true') {
+            # If multiple users connected to the same Team Server and loaded inline-execute-all, the inline-log-pe command will be triggered multiple times.
+            # So just silent the "not found" error if this command is triggered by the inline-log-pe mark.
+            $silent = true;
+        }
         $imagebase = strrep($imagebase, '0x', '');
         trace('[inline-log-pe] imagebase was set: 0x' . $imagebase);
     } else {
@@ -165,7 +171,7 @@ alias inline-log-pe {
     # Execute BOF
     trace('[inline-log-pe] Begin execute BOF.');
     $bof = read_script_resource($bof_base_dir . 'inlinelogpe.' . $barch . $debug_bof_suffix . '.o');
-    $args = bof_pack($bid, 'z', $imagebase);
+    $args = bof_pack($bid, 'zi', $imagebase, $silent);
     beacon_inline_execute($bid, $bof, 'go', $args);
     trace('[inline-log-pe] End execute BOF.');
 }
@@ -193,7 +199,7 @@ on beacon_output {
     if ('Mark to trigger inline-log-pe: 0x' isin $message) {
         $imagebase = matches($message, 'Mark to trigger inline-log-pe:\s*(0x[0-9A-Fa-f]+)')[0];
         blog($bid, 'Found inline-log-pe mark: 0x' . $imagebase);
-        fireAlias($bid, 'inline-log-pe', $imagebase)
+        fireAlias($bid, 'inline-log-pe', $imagebase . ' true');
     }
 }
 

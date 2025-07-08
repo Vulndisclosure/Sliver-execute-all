@@ -139,7 +139,7 @@ BOOL DownloadFile(LPCWSTR filePath, PVOID data, DWORD size) {
 }
 #endif
 
-void InlineLogPE(void *imageBase) {
+void InlineLogPE(void *imageBase, bool silent) {
   TRACEF("Begin fetch log.");
 
   GlobalSharedData *data = NULL;
@@ -164,7 +164,9 @@ void InlineLogPE(void *imageBase) {
     }
   }
   if (index == LoadedPEImageMax) {
-    PRINTF_ERR("Can't find %p in PEImages.", imageBase);
+    if (!silent) {
+      PRINTF_ERR("Can't find %p in PEImages.", imageBase);
+    }
     goto out;
   }
   peImage = &data->PEImages[index];
@@ -245,9 +247,11 @@ void go(char *argv, int argc) {
   int imageBaseStrSize = 0;
   char *imageBaseStr = BeaconDataExtract(&parser, &imageBaseStrSize);
   void *imageBase = (void *)(size_t)_strtoui64(imageBaseStr, NULL, 16);
-  TRACEF("Arguments was parsed. (imageBase: %p)", imageBase);
+  bool silent = !!BeaconDataInt(&parser);
+  TRACEF("Arguments was parsed. (imageBase: %p, silent: %d)", imageBase,
+         silent);
 
-  InlineLogPE(imageBase);
+  InlineLogPE(imageBase, silent);
 }
 #endif
 }
