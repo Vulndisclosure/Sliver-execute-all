@@ -49,7 +49,7 @@ cl /c src\inlinelistpe.cc %BOF_FLAGS% /Fo"bin\inlinelistpe.x64.o"
 cl /c src\inlinelistpe.cc %BOF_FLAGS% /D _DEBUG /Fo"bin\inlinelistpe.x64d.o"
 
 cl /nologo /O2 /std:c++20 /EHsc tools\fixbof.cc tools\obj.cc /Fe"tools\fixbof.exe"
-tools\fixbof.exe tools\link ^
+tools\fixbof.exe cs4.5 tools\link ^
 bin\inlineexecutepe.x86.o bin\inlineexecutepe.x86d.o bin\inlineexecutepe.x64.o bin\inlineexecutepe.x64d.o ^
 bin\inlinelogpe.x86.o bin\inlinelogpe.x86d.o bin\inlinelogpe.x64.o bin\inlinelogpe.x64d.o ^
 bin\inlinelistpe.x86.o bin\inlinelistpe.x86d.o bin\inlinelistpe.x64.o bin\inlinelistpe.x64d.o

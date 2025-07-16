@@ -189,6 +189,11 @@ BOOL ToWideString(LPSTR s, LPWSTR *ws) {
 }
 
 void PrintHookResultError(HookResult result, HookControl id) {
+  PRINTF_ERR("Failed to call HookControlEntry(%d): %x", id, result);
+  // TODO: This is a large switch statement. Cobalt Strike does not support
+  // relocations in .rdata section.
+
+  /*
   switch (result) {
     case HookResultErrorInvalidArgument:
       PRINTF_ERR("Invalid argument for HookControlEntry(%d).", id);
@@ -209,6 +214,7 @@ void PrintHookResultError(HookResult result, HookControl id) {
       PRINTF_ERR("Failed to call HookControlEntry(%d): %x", id, result);
       break;
   }
+  */
 }
 
 BOOL LoadHook(PVOID *hookBase, HookControlEntryProc *hookControlEntry) {

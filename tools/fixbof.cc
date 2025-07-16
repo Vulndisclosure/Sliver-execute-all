@@ -35,6 +35,13 @@ bool iequals(std::string_view x, std::string_view y) {
   });
 }
 
+enum class CompatibilityLevel {
+  kUnknown,
+  kCobaltStrike45,
+  kCobaltStrike47,
+  kCobaltStrike49,
+};
+
 using ApiMap = std::unordered_map<std::string, std::vector<std::string>,
                                   string_hash, std::equal_to<>>;
 
@@ -42,7 +49,7 @@ using IntrinsicMap =
     std::unordered_map<std::string, std::unique_ptr<std::vector<uint8_t>>,
                        string_hash, std::equal_to<>>;
 
-const std::unordered_set<std::string_view> kBeaconApis = {
+const std::unordered_set<std::string_view> kBeaconApis45 = {
     "LoadLibraryA",
     "FreeLibrary",
     "GetProcAddress",
@@ -74,6 +81,9 @@ const std::unordered_set<std::string_view> kBeaconApis = {
     "BeaconSpawnTemporaryProcess",
     "BeaconCleanupProcess",
     "toWideChar",
+};
+
+const std::unordered_set<std::string_view> kBeaconApis49 = {
     "BeaconInformation",
     "BeaconAddValue",
     "BeaconGetValue",
@@ -220,8 +230,163 @@ std::string DemangleSymbol(std::string_view name, bool is_x86, bool &is_import,
   return std::string(name);
 }
 
-bool CheckRelocations(const ObjectSection &text_section, const ApiMap &apis,
-                      const IntrinsicMap &intrinsics) {
+bool IsBeaconApi(std::string_view name, CompatibilityLevel comp_level) {
+  if (kBeaconApis45.contains(name)) {
+    if (comp_level >= CompatibilityLevel::kCobaltStrike45) {
+      return true;
+    }
+    errorln("Beacon API '{}' requires Cobalt Strike 4.5 or higher.", name);
+    return false;
+  }
+  if (kBeaconApis49.contains(name)) {
+    if (comp_level >= CompatibilityLevel::kCobaltStrike49) {
+      return true;
+    }
+    errorln("Beacon API '{}' requires Cobalt Strike 4.9 or higher.", name);
+    return false;
+  }
+  return false;
+}
+
+bool CheckRelocSection(const ObjectSection &text_section,
+                       const ObjectSection &section,
+                       CompatibilityLevel comp_level) {
+  if (section.relocs().empty()) {
+    return false;
+  }
+
+  // Only process relocs in .text, .data, and .pdata sections
+  if (&section == &text_section) {
+    return true;
+  }
+
+  const std::string &name = section.name();
+  if (name == ".data" || name == ".pdata") {
+    if (comp_level >= CompatibilityLevel::kCobaltStrike47) {
+      return true;
+    }
+    if (name != ".pdata") {
+      // I don't know why relocations in .pdata section should be processed.
+      // This should not be a problem.
+      errorln("Relocations in {} section require Cobalt Strike 4.7 or higher.",
+              name);
+    }
+    return false;
+  }
+
+  if (name == ".rdata") {
+    /*
+    Currently not supported by Cobalt Strike
+    e.g.
+    1. C sources created by MIDL compiler
+    const struct A a = {};
+    const struct B b = {&a};
+    2. Large switch statements
+    switch (x) {
+      case 1: ...;
+      case 2: ...;
+      case 3: ...;
+      case 4: ...;
+      case 5: ...;
+      ...
+    }
+    */
+    errorln(
+        "Relocations in .rdata section are not supported. (e.g. MIDL *_c.cpp "
+        "files, large switch statements)");
+  }
+
+  // Ignore other sections
+  return false;
+}
+
+bool CheckRelocSymbolSection(const ObjectSection &text_section,
+                             const ObjectSection &section,
+                             CompatibilityLevel comp_level) {
+  const std::string &name = section.name();
+  if (&section == &text_section || name == ".rdata" || name == ".data") {
+    return true;
+  }
+
+  if (name == ".xdata" || name == ".bss") {
+    if (comp_level >= CompatibilityLevel::kCobaltStrike47) {
+      return true;
+    }
+    errorln(
+        "Relocation symbol in {} section requires Cobalt Strike 4.7 or higher.",
+        name);
+    return false;
+  }
+
+  // Ignore other sections
+  return false;
+}
+
+bool CheckRelocType(uint16_t type, bool is_x86, CompatibilityLevel comp_level) {
+  if (is_x86) {
+    return type == IMAGE_REL_I386_DIR32 || type == IMAGE_REL_I386_REL32;
+  }
+
+  if (IMAGE_REL_AMD64_REL32 <= type && type <= IMAGE_REL_AMD64_REL32_5) {
+    return true;
+  }
+
+  if (type == IMAGE_REL_AMD64_ADDR64 || type == IMAGE_REL_AMD64_ADDR32NB) {
+    if (comp_level >= CompatibilityLevel::kCobaltStrike47) {
+      return true;
+    }
+    errorln("Relocation type {} requires Cobalt Strike 4.7 or higher.", type);
+    return false;
+  }
+
+  return false;
+}
+
+bool CheckRelocSymbol(const ObjectSection &text_section, const ApiMap &apis,
+                      const IntrinsicMap &intrinsics,
+                      const ObjectRelocation &reloc,
+                      CompatibilityLevel comp_level) {
+  const ObjectSymbol *symbol = reloc.symbol();
+  const ObjectSection *section = symbol->section();
+  bool is_x86 = text_section.file()->machine() == IMAGE_FILE_MACHINE_I386;
+
+  // Check if the relocation symbol is a known API or intrinsic
+  if (!section) {
+    // The referenced symbol is in an unknown section
+    const std::string &name = symbol->name();
+    if (intrinsics.find(name) != intrinsics.end()) {
+      return true;
+    }
+    bool is_import, is_cdecl, is_stdcall = false;
+    std::string demangled_name =
+        DemangleSymbol(name, is_x86, is_import, is_cdecl, is_stdcall);
+    if (IsBeaconApi(demangled_name, comp_level) ||
+        apis.find(demangled_name) != apis.end()) {
+      return true;
+    }
+
+    errorln("Unknown symbol: {}", name);
+    return false;
+  }
+
+  // Check if the relocation is in a known section
+  if (CheckRelocSymbolSection(text_section, *section, comp_level)) {
+    // The referenced symbol is in an existing section
+    uint16_t type = reloc.type();
+    if (!CheckRelocType(type, is_x86, comp_level)) {
+      errorln("Unsupported relocation type: {} ({}+{:#x} -> {})", type,
+              reloc.section()->name(), reloc.offset(), symbol->name());
+      return false;
+    }
+  }
+
+  // Ignore other cases
+  return true;
+}
+
+bool CheckRelocs(const ObjectSection &text_section, const ApiMap &apis,
+                 const IntrinsicMap &intrinsics,
+                 CompatibilityLevel comp_level) {
   // Check if the object file has duplicate sections
   bool b = true;
   const ObjectFile &obj = *text_section.file();
@@ -244,54 +409,11 @@ bool CheckRelocations(const ObjectSection &text_section, const ApiMap &apis,
   }
 
   // Check relocations like Cobalt Strike
-  bool is_x86 = obj.machine() == IMAGE_FILE_MACHINE_I386;
   for (auto &&t : obj.sections()) {
-    // Only process relocs in .text, .data, and .pdata sections
-    if (t.get() != &text_section && t->name() != ".data" &&
-        t->name() != ".pdata") {
-      continue;
-    }
-
-    // Check relocations
-    for (auto &&reloc : t->relocs()) {
-      const ObjectSymbol *symbol = reloc->symbol();
-      const ObjectSection *section = symbol->section();
-      if (!section) {
-        // The referenced symbol is in an unknown section
-        const std::string &name = symbol->name();
-        if (intrinsics.find(name) != intrinsics.end()) {
-          continue;
-        }
-        bool is_import, is_cdecl, is_stdcall = false;
-        std::string demangled_name =
-            DemangleSymbol(name, is_x86, is_import, is_cdecl, is_stdcall);
-        if (kBeaconApis.contains(demangled_name) ||
-            apis.find(demangled_name) != apis.end()) {
-          continue;
-        }
-
-        errorln("Unknown symbol: {}", name);
-        b = false;
-      } else if (section == &text_section || section->name() == ".rdata" ||
-                 section->name() == ".data" || section->name() == ".xdata" ||
-                 section->name() == ".bss") {
-        // The referenced symbol is in an existing section
-        uint16_t type = reloc->type();
-        bool is_supported_reloc;
-        if (is_x86) {
-          is_supported_reloc =
-              type == IMAGE_REL_I386_DIR32 || type == IMAGE_REL_I386_REL32;
-        } else {
-          is_supported_reloc = type == IMAGE_REL_AMD64_ADDR64 ||
-                               type == IMAGE_REL_AMD64_ADDR32NB ||
-                               (IMAGE_REL_AMD64_REL32 <= type &&
-                                type <= IMAGE_REL_AMD64_REL32_5);
-        }
-        if (!is_supported_reloc) {
-          errorln("Unsupported relocation type: {} ({}+{:#x} -> {})", type,
-                  t->name(), reloc->offset(), symbol->name());
-          b = false;
-        }
+    if (CheckRelocSection(text_section, *t, comp_level)) {
+      for (auto &&reloc : t->relocs()) {
+        b &= CheckRelocSymbol(text_section, apis, intrinsics, *reloc,
+                              comp_level);
       }
     }
   }
@@ -364,7 +486,8 @@ bool ResolveIntrinsic(const IntrinsicMap &intrinsics, std::string_view name,
 }
 
 size_t FixImports(ObjectSection &text_section, const ApiMap &apis,
-                  const IntrinsicMap &intrinsics) {
+                  const IntrinsicMap &intrinsics,
+                  CompatibilityLevel comp_level) {
   size_t intrinsic_count = 0;
   size_t beacon_api_count = 0;
   size_t dynamic_api_count = 0;
@@ -397,7 +520,7 @@ size_t FixImports(ObjectSection &text_section, const ApiMap &apis,
             is_import, is_cdecl, is_stdcall);
 
     // Don't process beacon APIs
-    bool is_beacon_api = kBeaconApis.contains(demangled_name);
+    bool is_beacon_api = IsBeaconApi(demangled_name, comp_level);
     if (is_beacon_api) {
       beacon_api_count++;
       traceln("Skipped beacon API: {}", name);
@@ -447,7 +570,7 @@ size_t FixImports(ObjectSection &text_section, const ApiMap &apis,
 
 void FixBOF(fs::path bof_path, const ApiMap &apis_x86, const ApiMap &apis_x64,
             const IntrinsicMap &intrinsics_x86,
-            const IntrinsicMap &intrinsics_x64) {
+            const IntrinsicMap &intrinsics_x64, CompatibilityLevel comp_level) {
   // Load the object file
   ObjectFile obj;
   obj.Load(ReadFile(bof_path.string()));
@@ -483,7 +606,7 @@ void FixBOF(fs::path bof_path, const ApiMap &apis_x86, const ApiMap &apis_x64,
   }
 
   // Check relocations
-  if (!CheckRelocations(*text_section, *apis, *intrinsics)) {
+  if (!CheckRelocs(*text_section, *apis, *intrinsics, comp_level)) {
     return;
   }
 
@@ -492,7 +615,7 @@ void FixBOF(fs::path bof_path, const ApiMap &apis_x86, const ApiMap &apis_x64,
   RemoveOutputPath(obj, obj_filename);
 
   // Fix imports
-  size_t count = FixImports(*text_section, *apis, *intrinsics);
+  size_t count = FixImports(*text_section, *apis, *intrinsics, comp_level);
   if (count > 0) {
     println("Fixed {} imports", count);
   }
@@ -510,14 +633,27 @@ int main(int argc, char **argv) {
     errorln("Usage: {} <link_path> <file1> [file2] ...", argv[0]);
     return 1;
   }
-  fs::path link_path = argv[1];
+  CompatibilityLevel comp_level = CompatibilityLevel::kUnknown;
+  std::string_view comp = argv[1];
+  if (comp == "cs4.5") {
+    comp_level = CompatibilityLevel::kCobaltStrike45;
+  } else if (comp == "cs4.7") {
+    comp_level = CompatibilityLevel::kCobaltStrike47;
+  } else if (comp == "cs4.9") {
+    comp_level = CompatibilityLevel::kCobaltStrike49;
+  } else {
+    errorln("Unknown compatibility level: {}", comp);
+    return 1;
+  }
+  fs::path link_path = argv[2];
   ApiMap apis_x86 = LoadApis((link_path / "x86" / "apis.txt").string());
   ApiMap apis_x64 = LoadApis((link_path / "x64" / "apis.txt").string());
   IntrinsicMap intrinsics_x86 = LoadIntrinsics((link_path / "x86").string());
   IntrinsicMap intrinsics_x64 = LoadIntrinsics((link_path / "x64").string());
-  for (int i = 2; i < argc; i++) {
+  for (int i = 3; i < argc; i++) {
     println("Processing: {}", argv[i]);
-    FixBOF(argv[i], apis_x86, apis_x64, intrinsics_x86, intrinsics_x64);
+    FixBOF(argv[i], apis_x86, apis_x64, intrinsics_x86, intrinsics_x64,
+           comp_level);
   }
   return 0;
 }
