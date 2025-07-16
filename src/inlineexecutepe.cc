@@ -13,6 +13,7 @@ extern "C" {
 #include "jobs1.cc"
 #include "jobs2.cc"
 #include "seh.cc"
+#include "vehprot.cc"
 
 WINBASEAPI NTSTATUS NTAPI NtFlushInstructionCache(HANDLE ProcessHandle,
                                                   PVOID BaseAddress,
@@ -614,17 +615,26 @@ void go(char *argv, int argc) {
       features, force, stdin_, stdinSize, peImage, peImageSize, commandLineA,
       commandLineASize, packedVirtualFiles, packedVirtualFilesSize, jobVersion);
 
-  BOOL fromFileServer = FALSE;
-  if (!peImage || !peImageSize) {
-    fromFileServer = GetPEImageFromFileServer(&peImage, &peImageSize);
-  }
+  VP_INIT;
+  VP_TRY {
+    BOOL fromFileServer = FALSE;
+    if (!peImage || !peImageSize) {
+      fromFileServer = GetPEImageFromFileServer(&peImage, &peImageSize);
+    }
 
-  InlineExecutePE(features, force, stdin_, stdinSize, peImage, peImageSize,
-                  commandLineA, packedVirtualFiles, jobVersion, NULL, NULL);
+    InlineExecutePE(features, force, stdin_, stdinSize, peImage, peImageSize,
+                    commandLineA, packedVirtualFiles, jobVersion, NULL, NULL);
 
-  if (fromFileServer) {
-    if (peImage) free(peImage);
+    if (fromFileServer) {
+      if (peImage) free(peImage);
+    }
   }
+  VP_CATCH {
+    PRINTF_ERR("Exception occurred during InlineExecutePE: %d",
+               VP_ExceptionCode);
+  }
+  VP_END;
+  VP_UNINIT;
 }
 #endif
 }
