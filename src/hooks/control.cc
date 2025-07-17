@@ -313,8 +313,13 @@ DWORD WINAPI SelfUnloadProc(LPVOID lpThreadParameter) {
   }
   HookControlStopImpl();
   HookControlDeleteImpl();
-  TRACEF("PE image result: Stdout: %d, Stderr: %d, VirtualFiles: %d",
-         Output->Stdout->Size, Output->Stderr->Size, PEImage->VirtualFileCount);
+  if (HasFeatures(HookFeatureRedirectStdio)) {
+    TRACEF("PE image result: Stdout: %d, Stderr: %d, VirtualFiles: %d",
+           Output->Stdout->Size, Output->Stderr->Size,
+           PEImage->VirtualFileCount);
+  } else {
+    TRACEF("PE image result: VirtualFiles: %d", PEImage->VirtualFileCount);
+  }
 
   // Unload PE image
   PEImage->IsRunning = FALSE;
