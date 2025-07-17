@@ -195,7 +195,7 @@ static HookResult HookControlStopImpl() {
       if (pRtlSetUnhandledExceptionFilter) {
         pRtlSetUnhandledExceptionFilter(NULL);
       }
-      RemoveVectoredContinueHandler(ExGuard_ExceptionHandler);
+      RemoveVectoredContinueHandler((PVOID)ExGuard_ExceptionHandler);
     }
     SetUnhandledExceptionFilter(NULL);
   }
