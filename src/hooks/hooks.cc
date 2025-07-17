@@ -169,7 +169,8 @@ static uintptr_t __cdecl Mybeginthread(_In_ void *_StartAddress,
 
 static VOID WINAPI MyExitProcess(_In_ UINT uExitCode) {
   TRACEF("ExitProcess was called.");
-  if (HasFeatures(HookFeatureUnload | HookFeatureGo)) {
+  if (HasFeatures(HookFeatureUnload | HookFeatureGo) ||
+      HasFeatures(HookFeatureExceptionGuard)) {
     SpinLock(ThreadListLock, {
       SimpleListForEach(&ThreadList, DWORD, entry, {
         DWORD id = *entry;
@@ -238,6 +239,15 @@ static BOOL WINAPI MySetConsoleCtrlHandler(
   TRACEF("SetConsoleCtrlHandler was called. (HandlerRoutine: %p, Add: %d)",
          HandlerRoutine, Add);
   return TRUE;
+}
+
+static LPTOP_LEVEL_EXCEPTION_FILTER WINAPI MySetUnhandledExceptionFilter_Block(
+    _In_opt_ LPTOP_LEVEL_EXCEPTION_FILTER lpTopLevelExceptionFilter) {
+  TRACEF(
+      "SetUnhandledExceptionFilter_Block was called. "
+      "(lpTopLevelExceptionFilter: %p)",
+      lpTopLevelExceptionFilter);
+  return NULL;
 }
 
 /* Allocation related */
@@ -520,11 +530,16 @@ FARPROC WINAPI MyGetProcAddress(_In_ HMODULE hModule, _In_ LPCSTR lpProcName) {
       return (FARPROC)(PVOID)MyWriteFile;
     }
 
-    if (HasFeatures(HookFeatureUnload | HookFeatureGo)) {
-      // Hook CreateThread to collect all go routines
+    if (HasFeatures(HookFeatureUnload | HookFeatureGo) ||
+        HasFeatures(HookFeatureExceptionGuard)) {
+      // Hook CreateThread to collect all go routines and filter exceptions for
+      // exception guard feature
       if (hash == HashCT("CreateThread")) {
         return (FARPROC)(PVOID)MyCreateThread;
       }
+    }
+
+    if (HasFeatures(HookFeatureUnload | HookFeatureGo)) {
       // Hook VEH functions to collect VEHs (see
       // https://github.com/golang/go/blob/go1.23.0/src/runtime/signal_windows.go#L50)
       if (hash == HashCT("AddVectoredExceptionHandler")) {
@@ -547,6 +562,14 @@ FARPROC WINAPI MyGetProcAddress(_In_ HMODULE hModule, _In_ LPCSTR lpProcName) {
       }
       if (hash == HashCT("TlsAlloc")) {
         return (FARPROC)(PVOID)MyTlsAlloc;
+      }
+    }
+
+    if (HasFeatures(HookFeatureExceptionGuard)) {
+      if (hash == HashCT("SetUnhandledExceptionFilter")) {
+        // Hook SetUnhandledExceptionFilter to prevent exception guard from
+        // being overwritten
+        return (FARPROC)(PVOID)MySetUnhandledExceptionFilter_Block;
       }
     }
 

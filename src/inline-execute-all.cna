@@ -20,6 +20,7 @@ $HookFeatureStreamingOutput = 0x02;
 $HookFeatureCommandLine = 0x04;
 $HookFeatureUnload = 0x08;
 $HookFeatureVirtualFileSystem = 0x10;
+$HookFeatureExceptionGuard = 0x20;
 
 $HookFeatureCpp = 0x0100;
 $HookFeatureCppSEH = 0x0200;
@@ -28,9 +29,9 @@ $HookFeatureGo = 0x010000;
 $HookFeatureGoCobraFakeParentProcess = 0x020000;
 
 # The features of the inline-execute-pe BOF when running C/C++ PE file.
-$features_cpp = $HookFeatureRedirectStdio | $HookFeatureStreamingOutput | $HookFeatureCommandLine | $HookFeatureUnload | $HookFeatureVirtualFileSystem | $HookFeatureCpp | $HookFeatureCppSEH;
+$features_cpp = $HookFeatureRedirectStdio | $HookFeatureStreamingOutput | $HookFeatureCommandLine | $HookFeatureUnload | $HookFeatureVirtualFileSystem | $HookFeatureExceptionGuard | $HookFeatureCpp | $HookFeatureCppSEH;
 # The features of the inline-execute-pe BOF when running golang PE file.
-$features_go = $HookFeatureRedirectStdio | $HookFeatureStreamingOutput | $HookFeatureCommandLine | $HookFeatureUnload | $HookFeatureVirtualFileSystem | $HookFeatureGo | $HookFeatureGoCobraFakeParentProcess;
+$features_go = $HookFeatureRedirectStdio | $HookFeatureStreamingOutput | $HookFeatureCommandLine | $HookFeatureUnload | $HookFeatureVirtualFileSystem | $HookFeatureExceptionGuard | $HookFeatureGo | $HookFeatureGoCobraFakeParentProcess;
 
 $bof_base_dir = './inline-execute-all/';
 

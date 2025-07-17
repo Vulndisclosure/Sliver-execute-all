@@ -12,6 +12,7 @@ typedef enum {
   HookFeatureCommandLine = 0x04,
   HookFeatureUnload = 0x08,
   HookFeatureVirtualFileSystem = 0x10,
+  HookFeatureExceptionGuard = 0x20,
 
   HookFeatureCpp = 0x0100,
   HookFeatureCppSEH = 0x0200,
@@ -48,6 +49,7 @@ typedef struct {
 typedef struct {
   PVOID ImageBase;
   BOOL IsRunning;
+  BOOL IsCrashed;
   PVOID JobList;
   int JobId;
   HookOutput *Output;

@@ -34,8 +34,14 @@ void InlineListPE() {
 
     // Print the information
     if (peImage->IsRunning) {
-      PRINTF("%d: ImageBase: %p, Logs: %d, CommandLine: %s, JobId: %d", i,
-             peImage->ImageBase, logs, peImage->CommandLineA, peImage->JobId);
+      if (peImage->IsCrashed) {
+        PRINTF(
+            "%d: ImageBase: %p (crashed), Logs: %d, CommandLine: %s, JobId: %d",
+            i, peImage->ImageBase, logs, peImage->CommandLineA, peImage->JobId);
+      } else {
+        PRINTF("%d: ImageBase: %p, Logs: %d, CommandLine: %s, JobId: %d", i,
+               peImage->ImageBase, logs, peImage->CommandLineA, peImage->JobId);
+      }
     } else {
       PRINTF(
           "%d: ImageBase: %p (unloaded), Logs: %d, CommandLine: %s, JobId: %d, "

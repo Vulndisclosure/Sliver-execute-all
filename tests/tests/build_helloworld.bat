@@ -19,9 +19,11 @@ if errorlevel 1 echo Failed to initialize x86 environment. & exit /b 1
 
 @echo on
 cl helloworld.c /O2 /Fe:helloworld_c.x86.exe /link /DEBUG /OPT:REF /OPT:ICF
+cl helloworld_ex.c /O2 /Fe:helloworld_ex_c.x86.exe /link /DEBUG /OPT:REF /OPT:ICF
 cl helloworld_seh.c /O2 /Fe:helloworld_seh_c.x86.exe /link /DEBUG /OPT:REF /OPT:ICF
 cl helloworld_stdin.c /O2 /Fe:helloworld_stdin_c.x86.exe /link /DEBUG /OPT:REF /OPT:ICF
 @REM cl helloworld.c /O2 /Fe:helloworld_c.x86.exe
+@REM cl helloworld_ex.c /O2 /Fe:helloworld_ex_c.x86.exe
 @REM cl helloworld_seh.c /O2 /Fe:helloworld_seh_c.x86.exe
 @REM cl helloworld_stdin.c /O2 /Fe:helloworld_stdin_c.x86.exe
 @echo off
@@ -31,14 +33,17 @@ if errorlevel 1 echo Failed to initialize x64 environment. & exit /b 1
 
 @echo on
 cl helloworld.c /O2 /Fe:helloworld_c.x64.exe /link /DEBUG /OPT:REF /OPT:ICF
+cl helloworld_ex.c /O2 /Fe:helloworld_ex_c.x64.exe /link /DEBUG /OPT:REF /OPT:ICF
 cl helloworld_seh.c /O2 /Fe:helloworld_seh_c.x64.exe /link /DEBUG /OPT:REF /OPT:ICF
 cl helloworld_stdin.c /O2 /Fe:helloworld_stdin_c.x64.exe /link /DEBUG /OPT:REF /OPT:ICF
 @REM cl helloworld.c /O2 /Fe:helloworld_c.x64.exe
+@REM cl helloworld_ex.c /O2 /Fe:helloworld_ex_c.x64.exe
 @REM cl helloworld_seh.c /O2 /Fe:helloworld_seh_c.x64.exe
 @REM cl helloworld_stdin.c /O2 /Fe:helloworld_stdin_c.x64.exe
 @echo off
 
 del helloworld.obj
+del helloworld_ex.obj
 del helloworld_seh.obj
 del helloworld_stdin.obj
 

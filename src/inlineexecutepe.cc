@@ -418,6 +418,7 @@ BOOL SetLoadedPEImage(LoadedPEImage **peImage, PVOID imageBase,
   LoadedPEImage *p = *peImage = &data->PEImages[index];
   p->ImageBase = imageBase;
   p->IsRunning = FALSE;
+  p->IsCrashed = FALSE;
   p->JobList = jobList;
   p->JobId = jobId;
   p->Output = output;

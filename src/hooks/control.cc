@@ -1,3 +1,4 @@
+#include "exguard.h"
 #include "hooks.h"
 #include "pipeserver.h"
 #include "simplelist.h"
@@ -53,11 +54,14 @@ static HookResult HookControlCreateImpl(HookFeatures features, PVOID stdin_,
   }
 
   // Allocate new thread list, exception handler list and memory list to support
-  // unloading go
-  if (HasFeatures(HookFeatureUnload | HookFeatureGo)) {
+  // unloading go and exception guard
+  if (HasFeatures(HookFeatureUnload | HookFeatureGo) ||
+      HasFeatures(HookFeatureExceptionGuard)) {
     if (!SimpleListAlloc(&ThreadList, sizeof(DWORD) * 128)) {
       return HookResultErrorCreateSimpleList;
     }
+  }
+  if (HasFeatures(HookFeatureUnload | HookFeatureGo)) {
     if (!SimpleListAlloc(&ExceptionHandlerList,
                          sizeof(ExceptionHandlerEntry) * 8)) {
       return HookResultErrorCreateSimpleList;
@@ -101,8 +105,11 @@ static void HookControlDeleteImpl() {
   TRACEF("HookControlDeleteImpl was called.");
 
   // Free new thread list, exception handler list and memory list
-  if (HasFeatures(HookFeatureUnload | HookFeatureGo)) {
+  if (HasFeatures(HookFeatureUnload | HookFeatureGo) ||
+      HasFeatures(HookFeatureExceptionGuard)) {
     SimpleListFree(&ThreadList);
+  }
+  if (HasFeatures(HookFeatureUnload | HookFeatureGo)) {
     SimpleListFree(&ExceptionHandlerList);
     SimpleListFree(&MemoryList);
     SimpleListFree(&TlsList);
@@ -127,9 +134,13 @@ static void HookControlDeleteImpl() {
 static HookResult HookControlStartImpl(void *entryPoint) {
   TRACEF("HookControlStartImpl was called.");
 
+  if (HasFeatures(HookFeatureExceptionGuard)) {
+    InitializeExceptionGuard();
+  }
   LPTHREAD_START_ROUTINE runExeEntry = (LPTHREAD_START_ROUTINE)RunExeEntryProc;
   HANDLE hThread;
-  if (HasFeatures(HookFeatureUnload | HookFeatureGo)) {
+  if (HasFeatures(HookFeatureUnload | HookFeatureGo) ||
+      HasFeatures(HookFeatureExceptionGuard)) {
     hThread = MyCreateThread(NULL, 0, runExeEntry, entryPoint, 0, NULL);
   } else {
     hThread = CreateThread(NULL, 0, runExeEntry, entryPoint, 0, NULL);
@@ -171,10 +182,20 @@ static HookResult HookControlStopImpl() {
     });
     TRACEF("All tls were released.");
   }
-  if (HasFeatures(HookFeatureUnload)) {
+  if (HasFeatures(HookFeatureUnload) ||
+      HasFeatures(HookFeatureExceptionGuard)) {
     // TODO: SetUnhandledExceptionFilter does not have a corresponding remove
     // function. If multiple golang programs are executed in memory together,
     // set previous exception filter will fail. (32bit only)
+    // If exception guard is enabled, we should also unset the filter.
+    if (HasFeatures(HookFeatureExceptionGuard)) {
+      decltype(SetUnhandledExceptionFilter) *pRtlSetUnhandledExceptionFilter =
+          (decltype(SetUnhandledExceptionFilter) *)(PVOID)GetProcAddress(
+              GetModuleHandleA("ntdll.dll"), "RtlSetUnhandledExceptionFilter");
+      if (pRtlSetUnhandledExceptionFilter) {
+        pRtlSetUnhandledExceptionFilter(NULL);
+      }
+    }
     SetUnhandledExceptionFilter(NULL);
   }
 

@@ -15,10 +15,10 @@ C2SC_LINK_FLAGS64="-l:msvcrt.x64.lib $C2SC_LINK_FLAGS"
 
 mkdir -p bin
 
-$CC32 src/hooks/hooks.cc src/hooks/control.cc src/hooks/vfs.cc src/hooks/log.cc src/hooks/pipeserver.cc src/hooks/simplelist1.cc src/hooks/simplelist2.cc $CC_FLAGS -o bin/hooks.x86.exe $C2SC_LINK_FLAGS32,-e,_HookControlEntry &
-$CC64 src/hooks/hooks.cc src/hooks/control.cc src/hooks/vfs.cc src/hooks/log.cc src/hooks/pipeserver.cc src/hooks/simplelist1.cc src/hooks/simplelist2.cc $CC_FLAGS -o bin/hooks.x64.exe $C2SC_LINK_FLAGS64,-e,HookControlEntry &
-$CC32 src/hooks/hooks.cc src/hooks/control.cc src/hooks/vfs.cc src/hooks/log.cc src/hooks/pipeserver.cc src/hooks/simplelist1.cc src/hooks/simplelist2.cc $CC_FLAGS -D _DEBUG -o bin/hooks.x86d.exe $C2SC_LINK_FLAGS32,-e,_HookControlEntry &
-$CC64 src/hooks/hooks.cc src/hooks/control.cc src/hooks/vfs.cc src/hooks/log.cc src/hooks/pipeserver.cc src/hooks/simplelist1.cc src/hooks/simplelist2.cc $CC_FLAGS -D _DEBUG -o bin/hooks.x64d.exe $C2SC_LINK_FLAGS64,-e,HookControlEntry &
+$CC32 src/hooks/hooks.cc src/hooks/control.cc src/hooks/vfs.cc src/hooks/exguard.cc src/hooks/log.cc src/hooks/pipeserver.cc src/hooks/simplelist1.cc src/hooks/simplelist2.cc $CC_FLAGS -o bin/hooks.x86.exe $C2SC_LINK_FLAGS32,-e,_HookControlEntry &
+$CC64 src/hooks/hooks.cc src/hooks/control.cc src/hooks/vfs.cc src/hooks/exguard.cc src/hooks/log.cc src/hooks/pipeserver.cc src/hooks/simplelist1.cc src/hooks/simplelist2.cc $CC_FLAGS -o bin/hooks.x64.exe $C2SC_LINK_FLAGS64,-e,HookControlEntry &
+$CC32 src/hooks/hooks.cc src/hooks/control.cc src/hooks/vfs.cc src/hooks/exguard.cc src/hooks/log.cc src/hooks/pipeserver.cc src/hooks/simplelist1.cc src/hooks/simplelist2.cc $CC_FLAGS -D _DEBUG -o bin/hooks.x86d.exe $C2SC_LINK_FLAGS32,-e,_HookControlEntry &
+$CC64 src/hooks/hooks.cc src/hooks/control.cc src/hooks/vfs.cc src/hooks/exguard.cc src/hooks/log.cc src/hooks/pipeserver.cc src/hooks/simplelist1.cc src/hooks/simplelist2.cc $CC_FLAGS -D _DEBUG -o bin/hooks.x64d.exe $C2SC_LINK_FLAGS64,-e,HookControlEntry &
 $CC32 src/c2scstartup.cc src/fileserver.cc src/globalshareddata.cc $CC_FLAGS -o bin/fileserver.x86.exe $C2SC_LINK_FLAGS32,-e,_Entry &
 $CC64 src/c2scstartup.cc src/fileserver.cc src/globalshareddata.cc $CC_FLAGS -o bin/fileserver.x64.exe $C2SC_LINK_FLAGS64,-e,Entry &
 $CC32 src/c2scstartup.cc src/fileserver.cc src/globalshareddata.cc $CC_FLAGS -D _DEBUG -o bin/fileserver.x86d.exe $C2SC_LINK_FLAGS32,-e,_Entry &

@@ -13,15 +13,15 @@ if not exist "bin" mkdir "bin"
 call :SETUP_ENV
 
 call :SET_ENV MSVC_X86
-cl src\hooks\hooks.cc src\hooks\control.cc src\hooks\vfs.cc src\hooks\log.cc src\hooks\pipeserver.cc src\hooks\simplelist1.cc src\hooks\simplelist2.cc %CC_FLAGS% /Fe"bin\hooks.x86.exe" %C2SC_LINK_FLAGS32% /ENTRY:HookControlEntry
-cl src\hooks\hooks.cc src\hooks\control.cc src\hooks\vfs.cc src\hooks\log.cc src\hooks\pipeserver.cc src\hooks\simplelist1.cc src\hooks\simplelist2.cc %CC_FLAGS% /D _DEBUG /Fe"bin\hooks.x86d.exe" %C2SC_LINK_FLAGS32% /ENTRY:HookControlEntry
+cl src\hooks\hooks.cc src\hooks\control.cc src\hooks\vfs.cc src\hooks\exguard.cc src\hooks\log.cc src\hooks\pipeserver.cc src\hooks\simplelist1.cc src\hooks\simplelist2.cc %CC_FLAGS% /Fe"bin\hooks.x86.exe" %C2SC_LINK_FLAGS32% /ENTRY:HookControlEntry
+cl src\hooks\hooks.cc src\hooks\control.cc src\hooks\vfs.cc src\hooks\exguard.cc src\hooks\log.cc src\hooks\pipeserver.cc src\hooks\simplelist1.cc src\hooks\simplelist2.cc %CC_FLAGS% /D _DEBUG /Fe"bin\hooks.x86d.exe" %C2SC_LINK_FLAGS32% /ENTRY:HookControlEntry
 cl src\c2scstartup.cc src\fileserver.cc src\globalshareddata.cc %CC_FLAGS% /Fe"bin\fileserver.x86.exe" %C2SC_LINK_FLAGS32% /ENTRY:Entry
 cl src\c2scstartup.cc src\fileserver.cc src\globalshareddata.cc %CC_FLAGS% /D _DEBUG /Fe"bin\fileserver.x86d.exe" %C2SC_LINK_FLAGS32% /ENTRY:Entry
 
 call :SET_ENV MSVC_X64
 ml64 /nologo /c src/selfunload.x64.asm
-cl src\hooks\hooks.cc src\hooks\control.cc src\hooks\vfs.cc src\hooks\log.cc src\hooks\pipeserver.cc src\hooks\simplelist1.cc src\hooks\simplelist2.cc selfunload.x64.obj %CC_FLAGS% /Fe"bin\hooks.x64.exe" %C2SC_LINK_FLAGS64% /ENTRY:HookControlEntry
-cl src\hooks\hooks.cc src\hooks\control.cc src\hooks\vfs.cc src\hooks\log.cc src\hooks\pipeserver.cc src\hooks\simplelist1.cc src\hooks\simplelist2.cc selfunload.x64.obj %CC_FLAGS% /D _DEBUG /Fe"bin\hooks.x64d.exe" %C2SC_LINK_FLAGS64% /ENTRY:HookControlEntry
+cl src\hooks\hooks.cc src\hooks\control.cc src\hooks\vfs.cc src\hooks\exguard.cc src\hooks\log.cc src\hooks\pipeserver.cc src\hooks\simplelist1.cc src\hooks\simplelist2.cc selfunload.x64.obj %CC_FLAGS% /Fe"bin\hooks.x64.exe" %C2SC_LINK_FLAGS64% /ENTRY:HookControlEntry
+cl src\hooks\hooks.cc src\hooks\control.cc src\hooks\vfs.cc src\hooks\exguard.cc src\hooks\log.cc src\hooks\pipeserver.cc src\hooks\simplelist1.cc src\hooks\simplelist2.cc selfunload.x64.obj %CC_FLAGS% /D _DEBUG /Fe"bin\hooks.x64d.exe" %C2SC_LINK_FLAGS64% /ENTRY:HookControlEntry
 cl src\c2scstartup.cc src\fileserver.cc src\globalshareddata.cc selfunload.x64.obj %CC_FLAGS% /Fe"bin\fileserver.x64.exe" %C2SC_LINK_FLAGS64% /ENTRY:Entry
 cl src\c2scstartup.cc src\fileserver.cc src\globalshareddata.cc selfunload.x64.obj %CC_FLAGS% /D _DEBUG /Fe"bin\fileserver.x64d.exe" %C2SC_LINK_FLAGS64% /ENTRY:Entry
 
