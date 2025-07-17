@@ -2,13 +2,20 @@
 
 #include "hooks.h"
 
+#define VP_EXCEPTION_HANDLED 0x4898068a
+
 LONG NTAPI ExGuard_ExceptionHandler(PEXCEPTION_POINTERS ExceptionInfo) {
   DWORD code = ExceptionInfo->ExceptionRecord->ExceptionCode;
   PVOID address = ExceptionInfo->ExceptionRecord->ExceptionAddress;
   TRACEF(
       "ExGuard_ExceptionHandler was called. (ExceptionCode: %08x, "
-      "ExceptionAddress: %p)",
-      code, address);
+      "ExceptionAddress: %p, Flags: %08x, ThreadId: %d)",
+      code, address, ExceptionInfo->ExceptionRecord->ExceptionFlags,
+      (UINT)(SIZE_T)NtCurrentThreadId());
+  if (code == VP_EXCEPTION_HANDLED) {
+    // This is a handled exception from vehprot.cc, continue execution.
+    return EXCEPTION_CONTINUE_EXECUTION;
+  }
   BOOL found = FALSE;
   int index = 0;
   SpinLock(ThreadListLock, {
@@ -49,7 +56,7 @@ void InitializeExceptionGuard() {
   } else {
     SetUnhandledExceptionFilter(ExGuard_ExceptionHandler);
   }
-  AddVectoredContinueHandler(FALSE, ExGuard_ExceptionHandler);
+  AddVectoredContinueHandler(TRUE, ExGuard_ExceptionHandler);
   TRACEF("Exception guard initialized. (handler: %p)",
          ExGuard_ExceptionHandler);
 }

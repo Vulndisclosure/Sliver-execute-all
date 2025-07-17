@@ -10,6 +10,7 @@ EXTERN_C NTSTATUS NTAPI NtGetContextThreadProto(_In_ HANDLE ThreadHandle,
 #define VP_STATE_RUNNING 2
 #define VP_STATE_EXCEPTION 3
 #define VP_STATE_ENDED 4
+#define VP_EXCEPTION_HANDLED 0x4898068a
 
 // For compatibility, .bss is supported since Cobalt Strike 4.7
 PVOID VP_Handle = (PVOID)(SIZE_T)1;
@@ -33,17 +34,25 @@ PVOID VP_ExceptionAddress = (PVOID)(SIZE_T)1;
 volatile DWORD VP_State = 1;
 
 LONG NTAPI VP_ExceptionHandler(PEXCEPTION_POINTERS ExceptionInfo) {
-  // Skip DBG_* exceptions: FACILITY_DEBUGGER
   DWORD code = ExceptionInfo->ExceptionRecord->ExceptionCode;
+  PVOID address = ExceptionInfo->ExceptionRecord->ExceptionAddress;
+  // Skip DBG_* exceptions: FACILITY_DEBUGGER
   if (((code >> 16) & 0xFFF) == 1) {
     return EXCEPTION_CONTINUE_SEARCH;
   }
+  TRACEF(
+      "VP_ExceptionHandler was called. (ExceptionCode: %08x, "
+      "ExceptionAddress: %p, Flags: %08x, ThreadId: %d)",
+      code, address, ExceptionInfo->ExceptionRecord->ExceptionFlags,
+      (UINT)(SIZE_T)VP_NtCurrentThreadId());
   if (VP_State == VP_STATE_RUNNING &&
       VP_ThreadId == (DWORD)(SIZE_T)VP_NtCurrentThreadId()) {
+    TRACEF("VP_ExceptionHandler: continue execution.");
+    ExceptionInfo->ExceptionRecord->ExceptionCode = VP_EXCEPTION_HANDLED;
     *ExceptionInfo->ContextRecord = VP_Context;
     VP_State = VP_STATE_EXCEPTION;
     VP_ExceptionCode = code;
-    VP_ExceptionAddress = ExceptionInfo->ExceptionRecord->ExceptionAddress;
+    VP_ExceptionAddress = address;
     return EXCEPTION_CONTINUE_EXECUTION;
   }
   return EXCEPTION_CONTINUE_SEARCH;
@@ -126,7 +135,7 @@ __declspec(naked) void VP_CaptureContext() {
       (decltype(NtGetContextThreadProto)*)(PVOID)GetProcAddress(               \
           GetModuleHandleA("ntdll.dll"), "NtGetContextThread");                \
   if (VP_AddVectoredExceptionHandler && VP_RemoveVectoredExceptionHandler) {   \
-    VP_Handle = VP_AddVectoredExceptionHandler(FALSE, VP_ExceptionHandler);    \
+    VP_Handle = VP_AddVectoredExceptionHandler(TRUE, VP_ExceptionHandler);     \
     if (!VP_Handle) {                                                          \
       PRINTF_ERR("Failed to add vectored continue handler: %d",                \
                  (UINT)VP_NtLastError());                                      \
