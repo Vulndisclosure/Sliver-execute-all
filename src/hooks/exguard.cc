@@ -25,10 +25,16 @@ static LONG NTAPI ExGuard_ExceptionHandler(PEXCEPTION_POINTERS ExceptionInfo) {
     // and can be unloaded.
     PEImage->IsCrashed = TRUE;
     PRINTF_ERR("Thread %d (%d) in '%s' encountered an exception: %08x at %p",
-               index, (UINT)(SIZE_T)NtCurrentThreadId(), PEImage->CommandLineA,
+               (UINT)(SIZE_T)NtCurrentThreadId(), index, PEImage->CommandLineA,
                code, address);
-    ExitThread(code);
+  } else {
+    // 1. Mutiple PE images are running by InlineExecutePE.
+    // 2. The PE image started this thread using a function other than
+    // CreateThread
+    PRINTF_ERR("Untracked thread %d encountered an exception: %08x at %p",
+               (UINT)(SIZE_T)NtCurrentThreadId(), code, address);
   }
+  ExitThread(code);
   return EXCEPTION_CONTINUE_SEARCH;
 }
 
