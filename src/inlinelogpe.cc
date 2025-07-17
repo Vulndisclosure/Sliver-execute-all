@@ -150,6 +150,14 @@ void InlineLogPE(void *imageBase, bool silent) {
   HookOutput *output = NULL;
 
   data = GetGlobalSharedData();
+  if (!data) {
+    if (!silent) {
+      PRINTF_ERR(
+          "Failed to get global shared data: page has been occupied or version "
+          "mismatch.");
+    }
+    return;
+  }
   if (!imageBase) {
     imageBase = data->LastImageBase;
     PRINTF("Use the last image base %p.", imageBase);

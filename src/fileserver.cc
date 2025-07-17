@@ -86,6 +86,12 @@ static BOOL ReadBytes(HANDLE hPipe, PVOID buffer, DWORD size,
 void MainImpl() {
   // Get the global shared data
   GlobalSharedData* data = GetGlobalSharedData();
+  if (!data) {
+    TRACEF(
+        "Failed to get global shared data: page has been occupied or version "
+        "mismatch.");
+    return;
+  }
   if (data->File) {
     TRACEF("File already set");
     return;

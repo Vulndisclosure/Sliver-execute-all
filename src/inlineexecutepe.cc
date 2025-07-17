@@ -617,6 +617,13 @@ void go(char *argv, int argc) {
 
   VP_INIT;
   VP_TRY {
+    if (!GetGlobalSharedData()) {
+      PRINTF_ERR(
+          "Failed to get global shared data: page has been occupied or version "
+          "mismatch.");
+      return;
+    }
+
     BOOL fromFileServer = FALSE;
     if (!peImage || !peImageSize) {
       fromFileServer = GetPEImageFromFileServer(&peImage, &peImageSize);

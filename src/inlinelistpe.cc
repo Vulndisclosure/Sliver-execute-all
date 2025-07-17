@@ -10,8 +10,15 @@ extern "C" {
 void InlineListPE() {
   TRACEF("Begin list loaded PE images.");
 
-  PRINTF("Loaded PE images:");
   GlobalSharedData *data = GetGlobalSharedData();
+  if (!data) {
+    PRINTF_ERR(
+        "Failed to get global shared data: page has been occupied or version "
+        "mismatch.");
+    return;
+  }
+
+  PRINTF("Loaded PE images:");
   for (int i = 0; i < LoadedPEImageMax; i++) {
     LoadedPEImage *peImage = &data->PEImages[i];
     if (!peImage->ImageBase) {
