@@ -2,7 +2,7 @@
 
 #include "hooks.h"
 
-static LONG NTAPI ExGuard_ExceptionHandler(PEXCEPTION_POINTERS ExceptionInfo) {
+LONG NTAPI ExGuard_ExceptionHandler(PEXCEPTION_POINTERS ExceptionInfo) {
   DWORD code = ExceptionInfo->ExceptionRecord->ExceptionCode;
   PVOID address = ExceptionInfo->ExceptionRecord->ExceptionAddress;
   TRACEF(
@@ -49,6 +49,7 @@ void InitializeExceptionGuard() {
   } else {
     SetUnhandledExceptionFilter(ExGuard_ExceptionHandler);
   }
+  AddVectoredContinueHandler(FALSE, ExGuard_ExceptionHandler);
   TRACEF("Exception guard initialized. (handler: %p)",
          ExGuard_ExceptionHandler);
 }
