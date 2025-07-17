@@ -243,6 +243,34 @@ void test_seh() {
   CloseHandle(hEvent);
 }
 
+void test_seh_exguard() {
+  HookFeatures features = HookFeatureStreamingOutput | HookFeatureUnload |
+                          HookFeatureCpp | HookFeatureCppSEH |
+                          HookFeatureExceptionGuard;
+  char stdin_[] = "";
+  char commandLine[] = "dummy.exe";
+  size_t peImageSize = 0;
+  void *peImage = readfile("helloworld_seh_c." archstr ".exe", &peImageSize);
+  HANDLE hEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
+  void *imageBase = NULL;
+  HookResult result = HookResultSuccess;
+  if (peImage) {
+    for (size_t i = 0; i < loopcount; i++) {
+      result = InlineExecutePE(features, false, stdin_, sizeof(stdin_), peImage,
+                               (int)peImageSize, commandLine, NULL, 0, hEvent,
+                               &imageBase);
+      if (result != HookResultSuccess) __debugbreak();
+      InlineListPE();
+      WaitForSingleObject(hEvent, INFINITE);
+      ResetEvent(hEvent);
+      InlineLogPE(imageBase);
+      statement_after_execution;
+    }
+    free(peImage);
+  }
+  CloseHandle(hEvent);
+}
+
 void test_stdin() {
   HookFeatures features = HookFeatureRedirectStdio |
                           HookFeatureStreamingOutput | HookFeatureUnload |
