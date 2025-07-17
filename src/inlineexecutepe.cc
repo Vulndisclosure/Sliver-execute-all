@@ -630,8 +630,8 @@ void go(char *argv, int argc) {
     }
   }
   VP_CATCH {
-    PRINTF_ERR("Exception occurred during InlineExecutePE: %d",
-               VP_ExceptionCode);
+    PRINTF_ERR("Exception occurred during InlineExecutePE: %08X at %p",
+               VP_ExceptionCode, VP_ExceptionAddress);
   }
   VP_END;
   VP_UNINIT;
