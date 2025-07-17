@@ -146,6 +146,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\hooks\control.cc" />
+    <ClCompile Include="..\..\src\hooks\exguard.cc" />
     <ClCompile Include="..\..\src\hooks\hooks.cc" />
     <ClCompile Include="..\..\src\hooks\log.cc" />
     <ClCompile Include="..\..\src\hooks\pipeserver.cc" />
@@ -155,6 +156,7 @@
     <ClCompile Include="dllmain.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\src\hooks\exguard.h" />
     <ClInclude Include="..\..\src\hooks\hash.h" />
     <ClInclude Include="..\..\src\hooks\hooks.h" />
     <ClInclude Include="..\..\src\hooks\hookspub.h" />

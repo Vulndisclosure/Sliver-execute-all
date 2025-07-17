@@ -191,6 +191,31 @@ void test_go() {
   CloseHandle(hEvent);
 }
 
+void test_ex() {
+  HookFeatures features = HookFeatureStreamingOutput | HookFeatureCpp |
+                          HookFeatureCppSEH | HookFeatureExceptionGuard;
+  char stdin_[] = "";
+  char commandLine[] = "dummy.exe";
+  size_t peImageSize = 0;
+  void *peImage = readfile("helloworld_ex_c." archstr ".exe", &peImageSize);
+  HANDLE hEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
+  void *imageBase = NULL;
+  HookResult result = HookResultSuccess;
+  if (peImage) {
+    for (size_t i = 0; i < loopcount; i++) {
+      result = InlineExecutePE(features, false, stdin_, sizeof(stdin_), peImage,
+                               (int)peImageSize, commandLine, NULL, 0, hEvent,
+                               &imageBase);
+      if (result != HookResultSuccess) __debugbreak();
+      Sleep(200);  // Wait for the exception to be raised
+      InlineListPE();
+      statement_after_execution;
+    }
+    free(peImage);
+  }
+  CloseHandle(hEvent);
+}
+
 void test_seh() {
   HookFeatures features = HookFeatureStreamingOutput | HookFeatureUnload |
                           HookFeatureCpp | HookFeatureCppSEH;
@@ -558,5 +583,5 @@ void test_vfs_hackbrowserdata() {
 
 int main() {
   LoadLibrary("msvcrt.dll");
-  test_vfs_hackbrowserdata();
+  test_ex();
 }
