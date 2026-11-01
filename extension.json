@@ -1,0 +1,77 @@
+{
+  "name": "inline-execute-all",
+  "package_name": "inline-execute-all",
+  "version": "v0.1.0",
+  "extension_author": "Vulndisclosure",
+  "original_author": "inline-execute-all",
+  "repo_url": "",
+  "commands": [
+    {
+      "command_name": "inline-execute-cpp",
+      "help": "Load and run a C/C++ PE file in memory (manual features mask).",
+      "long_help": "Usage: inline-execute-cpp <features_hex> <force 0|1> <stdin_file|-> <exe_path> [cmdline] [vfs|'-'] <jobver 0|1|2>\n\nfeatures_hex for C/C++ = 0x33F. Use 0x0 to disable hooks.\nPass '-' for stdin and vfs if not needed.\njobver: 0 for CS <4.0, 1 for 4.0-4.8, 2 for 4.9+. For Sliver use 0.\n\nExample: inline-execute-cpp 0x33F 0 - C:\\Tools\\mimikatz.exe \"privilege::debug sekurlsa::logonpasswords exit\" - 0",
+      "entrypoint": "go",
+      "depends_on": "coff-loader",
+      "arguments": [
+        { "name": "features", "type": "int",    "desc": "Feature bitmask (C/C++ full = 0x33F, none = 0x0)" },
+        { "name": "force",    "type": "int",    "desc": "1 = force execute without checks, 0 = normal" },
+        { "name": "stdin",    "type": "file",   "desc": "File to use as stdin, or '-' for empty (empty file path workaround: pass any empty file)" },
+        { "name": "exe_path", "type": "file",   "desc": "Path to the C/C++ PE file" },
+        { "name": "cmdline",  "type": "string", "desc": "Raw command line arguments", "optional": true },
+        { "name": "vfs",      "type": "file",   "desc": "VFS mapping file, or '-' for empty", "optional": true },
+        { "name": "jobver",   "type": "int",    "desc": "JobEntry struct version: 0 (use 0 for Sliver)" }
+      ],
+      "files": [
+        { "os": "windows", "arch": "amd64", "path": "bin/inline-execute-all/inlineexecutepe.x64.o" },
+        { "os": "windows", "arch": "386",   "path": "bin/inline-execute-all/inlineexecutepe.x86.o" }
+      ]
+    },
+    {
+      "command_name": "inline-execute-go",
+      "help": "Load and run a golang PE file in memory (manual features mask).",
+      "long_help": "Usage: inline-execute-go <features_hex> <force 0|1> <stdin_file|-> <exe_path> [cmdline] [vfs|'-'] <jobver 0|1|2>\n\nfeatures_hex for Go = 0x3003F. Use 0x0 to disable hooks.\nFor Sliver use jobver=0.\n\nExample: inline-execute-go 0x3003F 0 - C:\\Tools\\HackBrowserData.exe \"\" - 0",
+      "entrypoint": "go",
+      "depends_on": "coff-loader",
+      "arguments": [
+        { "name": "features", "type": "int",    "desc": "Feature bitmask (Go full = 0x3003F, none = 0x0)" },
+        { "name": "force",    "type": "int",    "desc": "1 = force execute without checks, 0 = normal" },
+        { "name": "stdin",    "type": "file",   "desc": "File to use as stdin, or '-' for empty" },
+        { "name": "exe_path", "type": "file",   "desc": "Path to the golang PE file" },
+        { "name": "cmdline",  "type": "string", "desc": "Raw command line arguments", "optional": true },
+        { "name": "vfs",      "type": "file",   "desc": "VFS mapping file, or '-' for empty", "optional": true },
+        { "name": "jobver",   "type": "int",    "desc": "JobEntry struct version: 0 (use 0 for Sliver)" }
+      ],
+      "files": [
+        { "os": "windows", "arch": "amd64", "path": "bin/inline-execute-all/inlineexecutepe.x64.o" },
+        { "os": "windows", "arch": "386",   "path": "bin/inline-execute-all/inlineexecutepe.x86.o" }
+      ]
+    },
+    {
+      "command_name": "inline-list-pe",
+      "help": "List all loaded PE images with details.",
+      "long_help": "Usage: inline-list-pe\n\nExample: inline-list-pe",
+      "entrypoint": "go",
+      "depends_on": "coff-loader",
+      "arguments": [],
+      "files": [
+        { "os": "windows", "arch": "amd64", "path": "bin/inline-execute-all/inlinelistpe.x64.o" },
+        { "os": "windows", "arch": "386",   "path": "bin/inline-execute-all/inlinelistpe.x86.o" }
+      ]
+    },
+    {
+      "command_name": "inline-log-pe",
+      "help": "Fetch logs and complete stdout/stderr from a running PE image.",
+      "long_help": "Usage: inline-log-pe <image_base_hex> <silent 0|1>\n\nimage_base_hex: e.g. 0x008D0000\nsilent: 1 to suppress 'not found' errors (auto-trigger), 0 for manual.\n\nExample: inline-log-pe 0x008D0000 0\nExample: inline-log-pe 0x0 0",
+      "entrypoint": "go",
+      "depends_on": "coff-loader",
+      "arguments": [
+        { "name": "imagebase", "type": "string", "desc": "Image base hex (0x0 for last loaded)" },
+        { "name": "silent",    "type": "int",    "desc": "1 = silent (auto-trigger), 0 = manual" }
+      ],
+      "files": [
+        { "os": "windows", "arch": "amd64", "path": "bin/inline-execute-all/inlinelogpe.x64.o" },
+        { "os": "windows", "arch": "386",   "path": "bin/inline-execute-all/inlinelogpe.x86.o" }
+      ]
+    }
+  ]
+}
