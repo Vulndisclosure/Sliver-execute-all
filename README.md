@@ -4,7 +4,7 @@ A sophisticated in-memory PE loader for Sliver that supports C/C++ and Golang ex
 
 (Just made working extension.json for Sliver's extension manager,so I left README untouched, except for some POC pics)
 
-![POCpicture](Nethunter_Terminal.jpg)
+![POCpicture](NetHunter_Terminal.jpg)
 
 
 ## Table of Contents
