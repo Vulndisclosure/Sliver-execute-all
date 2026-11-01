@@ -1,8 +1,8 @@
-# Inline-Execute-All
+# Sliver-Execute-All
 
-English | [简体中文](README.zh-Hans.md)
+A sophisticated in-memory PE loader for Sliver that supports C/C++ and Golang executables with advanced features like SEH, asynchronous execution, streaming output, and automatic unloading.
 
-A sophisticated in-memory PE loader for Cobalt Strike that supports C/C++ and Golang executables with advanced features like SEH, asynchronous execution, streaming output, and automatic unloading.
+(Just made working extension.json for Sliver's extension manager,so I left README untouched, except for some POC pics)
 
 ## Table of Contents
 
