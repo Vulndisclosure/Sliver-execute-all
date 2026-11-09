@@ -6,6 +6,54 @@ A sophisticated in-memory PE loader for Sliver that supports C/C++ and Golang ex
 
 ![POCpicture](NetHunter_Terminal.jpg)
 
+[!WARNING]
+VFS and /tmp/empty in the Sliver manifest.
+The Sliver extension.json port requires two empty files on the C2 server (not on the target): one for the -stdin argument and one for the -vfs argument. Sliver's manifest cannot pass a zero-length binary argument any other way — it must point to a real (empty) file. Create them once:
+
+```bash
+touch /tmp/empty
+```
+
+Then pass /tmp/empty for both -stdin and -vfs. If you pass a non-existent path, coff-loader will either fail or shift the argument order, and the BOF will read garbage (e.g. Invalid PE headers magic). On Windows C2 servers use C:\Temp\empty instead.
+
+VFS (-vfs) caveat: in the original Cobalt Strike .cna the VFS string is built dynamically (path1[:data1];path2[:data2];...). The Sliver manifest passes -vfs as a file, not a string, so you must pre-build the packed VFS blob and save it to a file on the C2, then pass that file. Passing /tmp/empty means VFS is disabled (no virtual file mapping). This is fine for most PE files; only use a real VFS file if the target PE needs virtualized file I/O.
+
+-jobver caveat: the original .cna computes jobver from the Cobalt Strike version (0/1/2) and uses it to walk CS JobEntry structs for streaming output. Sliver has no CS Job API, so streaming output does not work. Always pass -jobver 0 and accept that output is only retrievable via inline-log-pe (polling), not in real time.
+
+Bitmask Reference (-features)
+
+The -features argument is a bitmask of hooks enabled inside hooks.dll. Combine values with bitwise OR. The two "full" presets from the original .cna are:
+
+· C/C++ full: 0x33F
+· Golang full: 0x3003F
+· Sliver-safe (no streaming): 0x33D (C/C++) / 0x3003D (Go) — recommended, because StreamingOutput relies on the CS Job API which Sliver does not have.
+
+# Bitmask table:
+| Bit | Hex | Name | What it does |
+|-----|-----|------|--------------|
+| 0 | 0x01 | RedirectStdio | Hooks GetStdHandle / WriteFile so PE stdout/stderr goes into Hooks instead of the real console. Required for any output to be captured. |
+| 1 | 0x02 | StreamingOutput | Pushes Hooks output to the C2 via the reverse-engineered Cobalt Strike Job API. Does not work in Sliver (no CS JobEntry). Use inline-log-pe instead. |
+| 2 | 0x04 | CommandLine | Hooks GetCommandLineA/W so the PE sees the fake command line passed via -cmdline. |
+| 3 | 0x08 | Unload | Hooks ExitProcess to trigger self-unload of the mapped PE. Conflicts with BokuLoader — may crash after unload. |
+| 4 | 0x10 | VirtualFileSystem | Enables VFS mapping. Only meaningful if -vfs points to a real packed VFS blob (not /tmp/empty). |
+| 5 | 0x20 | ExceptionGuard | Installs a VEH so unhandled exceptions in the PE don't kill the implant. |
+| 8 | 0x100 | Cpp | C++ runtime tweaks (exception handling, RTTI-related hooks). |
+| 9 | 0x200 | CppSEH | SEH support for C++ PE (x64 via RtlAddFunctionTable, x86 via NtQueryVirtualMemory hook). |
+| 16 | 0x10000 | Go | Golang runtime tweaks (goroutine-aware ExitProcess, thread cleanup, etc.). |
+| 17 | 0x20000 | GoCobraFakeParentProcess | Hooks Process32NextW to fake the parent process, preventing Golang Cobra CLI from detecting it's not running under a normal shell. |
+
+# Quick refs:
+
+| Preset | Hex | Notes |
+|--------|-----|-------|
+| C/C++ full (CS original) | 0x33F | Includes StreamingOutput — useless in Sliver |
+| C/C++ Sliver-safe | 0x33D | Recommended for C/C++ |
+| Go full (CS original) | 0x3003F | Includes StreamingOutput — useless in Sliver |
+| Go Sliver-safe | 0x3003D | Recommended for Go |
+| No hooks (debug) | 0x0 | PE runs bare; useful for diagnosing crashes |
+| Only stdio capture | 0x03 | RedirectStdio + StreamingOutput (streaming no-op in Sliver) |
+| Only stdio (Sliver-safe) | 0x01 | Just RedirectStdio |
+
 
 ## Table of Contents
 
